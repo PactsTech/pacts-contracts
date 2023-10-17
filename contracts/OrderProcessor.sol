@@ -17,20 +17,22 @@ enum State {
 }
 
 struct Order {
-    uint256 sequence;
-    address buyer;
-    address shipper;
-    uint256 price;
-    uint256 shipping;
+    uint256 sequence; // 32 bytes
+    address buyer; // 20 bytes
+    address shipper; // 20 bytes
+    uint256 price; // 32 bytes
+    uint256 shipping; // 32 bytes
     mapping(address => uint256) deposits;
-    uint256 submittedBlock;
-    uint256 confirmedBlock;
-    uint256 shippedBlock;
-    uint256 deliveredBlock;
-    State state;
+    uint256 submittedBlock; // 32 bytes
+    uint256 confirmedBlock; // 32 bytes
+    uint256 shippedBlock; // 32 bytes
+    uint256 deliveredBlock; // 32 bytes
+    State state; // 1 byte
     bytes shipment;
     bytes metadata;
 }
+
+// 32 + 20 + 20 + 32 + 32 + 32 + 32 + 32 + 32 + 1
 
 contract OrderProcessor {
     uint8 public constant VERSION = 1;
@@ -100,7 +102,7 @@ contract OrderProcessor {
     error OnlyShipper();
     error InvalidState();
 
-    constructor() payable {
+    constructor() {
         sequence = 1;
         seller = msg.sender;
     }
@@ -239,5 +241,41 @@ contract OrderProcessor {
             success,
             "Address: unable to send value, recipient may have reverted"
         );
+    }
+
+    function getOrder(
+        string memory _orderId
+    )
+        public
+        view
+        returns (
+            uint256 _sequence,
+            address _buyer,
+            address _shipper,
+            uint256 _price,
+            uint256 _shipping,
+            uint256 _submittedBlock,
+            uint256 _confirmedBlock,
+            uint256 _shippedBlock,
+            uint256 _deliveredBlock,
+            uint8 _state,
+            bytes memory _shipment,
+            bytes memory _metadata
+        )
+    {
+        Order storage order = orders[_orderId];
+        require(order.sequence > 0, "Order does not exist");
+        _sequence = order.sequence;
+        _buyer = order.buyer;
+        _shipper = order.shipper;
+        _price = order.price;
+        _shipping = order.shipping;
+        _submittedBlock = order.submittedBlock;
+        _confirmedBlock = order.confirmedBlock;
+        _shippedBlock = order.shippedBlock;
+        _deliveredBlock = order.deliveredBlock;
+        _state = uint8(order.state);
+        _shipment = order.shipment;
+        _metadata = order.metadata;
     }
 }
