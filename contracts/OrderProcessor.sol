@@ -17,22 +17,20 @@ enum State {
 }
 
 struct Order {
-    uint256 sequence; // 32 bytes
-    address buyer; // 20 bytes
-    address shipper; // 20 bytes
-    uint256 price; // 32 bytes
-    uint256 shipping; // 32 bytes
+    uint256 sequence;
+    address buyer;
+    address shipper;
+    uint256 price;
+    uint256 shipping;
     mapping(address => uint256) deposits;
-    uint256 submittedBlock; // 32 bytes
-    uint256 confirmedBlock; // 32 bytes
-    uint256 shippedBlock; // 32 bytes
-    uint256 deliveredBlock; // 32 bytes
-    State state; // 1 byte
+    uint256 submittedBlock;
+    uint256 confirmedBlock;
+    uint256 shippedBlock;
+    uint256 deliveredBlock;
+    State state;
     bytes shipment;
     bytes metadata;
 }
-
-// 32 + 20 + 20 + 32 + 32 + 32 + 32 + 32 + 32 + 1
 
 contract OrderProcessor {
     uint8 public constant VERSION = 1;
@@ -96,11 +94,6 @@ contract OrderProcessor {
     //     bytes indexed _order
     // );
     event Withdrawn(address indexed payee, uint256 amount);
-
-    error OnlyBuyer();
-    error OnlySeller();
-    error OnlyShipper();
-    error InvalidState();
 
     constructor() {
         sequence = 1;

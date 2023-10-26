@@ -26,19 +26,32 @@ describe('OrderProcessor', () => {
       const metadata = Buffer.from([0x01]);
       const value = 3;
       await processor.connect(buyer).submit(id, shipper.address, price, shipping, metadata, { value });
-      const order = await processor.getOrder(id);
-      expect(order[0]).to.eq(1n, 'Sequence should be 1');
-      expect(order[1]).to.eq(buyer.address, 'Buyer should be set');
-      expect(order[2]).to.eq(shipper.address, 'Shipper should be set');
-      expect(order[3]).to.eq(2n, 'Price should be 2');
-      expect(order[4]).to.eq(1n, 'Shipping should be 1');
-      expect(order[5]).to.eq(2n, 'Submitted block should be 2');
-      expect(order[6]).to.eq(0n, 'Confirmed block should be 0');
-      expect(order[7]).to.eq(0n, 'Shipped block should be 0');
-      expect(order[8]).to.eq(0n, 'Delivered block should be 0');
-      expect(order[9]).to.eq(0n, 'State should be 0');
-      expect(order[10]).to.eq('0x', 'Shipment should be 0x');
-      expect(order[11]).to.eq('0x01', 'Metadata should be 0x01');
+      const [
+        orderSequence,
+        orderBuyer,
+        orderShipper,
+        orderPrice,
+        orderShipping,
+        orderSubmittedBlock,
+        orderConfirmedBlock,
+        orderShippedBlock,
+        orderDeliveredBlock,
+        orderState,
+        orderShipment,
+        orderMetadata
+      ] = await processor.getOrder(id);
+      expect(orderSequence).to.eq(1n, 'Sequence should be 1');
+      expect(orderBuyer).to.eq(buyer.address, 'Buyer should be set');
+      expect(orderShipper).to.eq(shipper.address, 'Shipper should be set');
+      expect(orderPrice).to.eq(2n, 'Price should be 2');
+      expect(orderShipping).to.eq(1n, 'Shipping should be 1');
+      expect(orderSubmittedBlock).to.eq(2n, 'Submitted block should be 2');
+      expect(orderConfirmedBlock).to.eq(0n, 'Confirmed block should be 0');
+      expect(orderShippedBlock).to.eq(0n, 'Shipped block should be 0');
+      expect(orderDeliveredBlock).to.eq(0n, 'Delivered block should be 0');
+      expect(orderState).to.eq(0n, 'State should be 0');
+      expect(orderShipment).to.eq('0x', 'Shipment should be 0x');
+      expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
     });
 
     // it('Should receive and store the funds to lock', async function () {
