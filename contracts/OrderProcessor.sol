@@ -12,8 +12,8 @@ enum State {
     Accepted,
     Delivered,
     Aborted,
-    Canceled
-    // Disputed
+    Canceled,
+    Disputed
 }
 
 struct Order {
@@ -38,6 +38,7 @@ contract OrderProcessor {
 
     uint256 sequence;
     address immutable seller;
+    address immutable arbiter;
     mapping(string => Order) orders;
 
     event Submitted(
@@ -88,16 +89,18 @@ contract OrderProcessor {
         address indexed _shipper,
         string _orderId
     );
-    // event Disputed(
-    //     address indexed _buyer,
-    //     address indexed _seller,
-    //     bytes indexed _order
-    // );
+    event Disputed(
+        address indexed _buyer,
+        address indexed _seller,
+        address indexed _arbiter,
+        string _orderId
+    );
     event Withdrawn(address indexed payee, uint256 amount);
 
-    constructor() {
+    constructor(address _arbiter) {
         sequence = 1;
         seller = msg.sender;
+        arbiter = _arbiter;
     }
 
     function submit(
@@ -145,6 +148,7 @@ contract OrderProcessor {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Confirmed, "Order in incorrect state");
+        require(seller == msg.sender, "Only seller can handoff order");
         orders[_orderId].shipment = _shipment;
         orders[_orderId].state = State.HandedOff;
         emit HandedOff(order.buyer, seller, order.shipper, _shipment);
@@ -154,7 +158,7 @@ contract OrderProcessor {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.HandedOff, "Order in incorrect state");
-        require(order.shipper == msg.sender);
+        require(order.shipper == msg.sender, "Only shipper can ship");
         orders[_orderId].deposits[msg.sender] = msg.value;
         orders[_orderId].shippedBlock = block.number;
         emit Shipped(order.buyer, seller, order.shipper, order.shipment);
@@ -164,36 +168,45 @@ contract OrderProcessor {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
-        require(order.buyer == msg.sender);
+        require(order.buyer == msg.sender, "Only buyer can accept");
         orders[_orderId].state = State.Accepted;
         emit Accepted(order.buyer, seller, order.shipper, order.shipment);
     }
 
-    function deliver(string memory _orderId) external payable {
+    function deliver(string memory _orderId) external {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Accepted, "Order in incorrect state");
-        require(order.shipper == msg.sender);
+        require(order.shipper == msg.sender, "Only shipper can deliver");
         orders[_orderId].state = State.Delivered;
         emit Delivered(order.buyer, seller, order.shipper, order.shipment);
     }
 
-    function cancel(string memory _orderId) external payable {
+    function cancel(string memory _orderId) external {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        require(order.buyer == msg.sender);
+        require(order.buyer == msg.sender, "Only buyer can cancel an order");
         orders[_orderId].state = State.Canceled;
         emit Canceled(order.buyer, seller, order.shipper, _orderId);
     }
 
-    function abort(string memory _orderId) external payable {
+    function abort(string memory _orderId) external {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        require(seller == msg.sender);
+        require(seller == msg.sender, "Only seller can abort an order");
         orders[_orderId].state = State.Aborted;
         emit Aborted(order.buyer, seller, order.shipper, _orderId);
+    }
+
+    function dispute(string memory _orderId) external {
+        Order storage order = orders[_orderId];
+        require(order.sequence > 0, "Order does not exist");
+        require(order.state == State.Submitted, "Order in incorrect state");
+        require(order.buyer == msg.sender, "Only a buyer can dispute");
+        orders[_orderId].state = State.Disputed;
+        emit Disputed(order.buyer, seller, arbiter, _orderId);
     }
 
     function withdrawalAllowed(
