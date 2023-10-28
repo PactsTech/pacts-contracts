@@ -164,9 +164,5 @@ describe('OrderProcessor', () => {
       expect(orderShipment).to.eq('0x02', 'Shipment should be 0x02');
       expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
     });
-
-    it('Should allow the buyer to accept the order', async () => {
-
-    });
   });
 });
