@@ -11,10 +11,10 @@ describe('OrderProcessor', () => {
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
   const deployOrderProcessorFixture = async () => {
-    const [seller, buyer, shipper] = await ethers.getSigners();
+    const [arbiter, seller, buyer, shipper] = await ethers.getSigners();
     const OrderProcessor = await ethers.getContractFactory('OrderProcessor');
-    const processor = await OrderProcessor.deploy();
-    return { processor, seller, buyer, shipper };
+    const processor = await OrderProcessor.deploy(arbiter);
+    return { processor, arbiter, seller, buyer, shipper };
   };
 
   describe('Orders', () => {
