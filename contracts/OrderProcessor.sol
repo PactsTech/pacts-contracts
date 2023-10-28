@@ -157,10 +157,12 @@ contract OrderProcessor {
     function ship(string memory _orderId) external payable {
         Order storage order = orders[_orderId];
         require(order.sequence > 0, "Order does not exist");
+        require(msg.value >= order.price, "Not enough collateral");
         require(order.state == State.HandedOff, "Order in incorrect state");
         require(order.shipper == msg.sender, "Only shipper can ship");
         orders[_orderId].deposits[msg.sender] = msg.value;
         orders[_orderId].shippedBlock = block.number;
+        orders[_orderId].state = State.Shipped;
         emit Shipped(order.buyer, seller, order.shipper, order.shipment);
     }
 
