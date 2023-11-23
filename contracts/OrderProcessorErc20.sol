@@ -123,20 +123,20 @@ contract OrderProcessorErc20 {
         orders[orderId].shipper = shipper;
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
-        orders[orderId].deposits[msg.sender] = msg.value;
+        orders[orderId].deposits[msg.sender] = price + shipping;
         orders[orderId].submittedBlock = block.number;
         orders[orderId].state = State.Submitted;
         orders[orderId].metadata = metadata;
         emit Submitted(msg.sender, seller, shipper, orderId);
     }
 
-    function confirm(string memory orderId) external payable {
+    function confirm(string memory orderId) external {
         require(msg.sender == seller, "Only seller can confirm an order");
         Order storage order = orders[orderId];
-        require(msg.value >= order.price, "Not enough collateral");
+        // require(msg.value >= order.price, "Not enough collateral");
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        orders[orderId].deposits[msg.sender] = msg.value;
+        // orders[orderId].deposits[msg.sender] = msg.value;
         orders[orderId].confirmedBlock = block.number;
         orders[orderId].state = State.Confirmed;
         address buyer = order.buyer;
@@ -144,10 +144,7 @@ contract OrderProcessorErc20 {
         emit Confirmed(buyer, seller, shipper, orderId);
     }
 
-    function handOff(
-        string memory orderId,
-        bytes memory shipment
-    ) external payable {
+    function handOff(string memory orderId, bytes memory shipment) external {
         require(msg.sender == seller, "Only seller can confirm an order");
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
@@ -158,19 +155,19 @@ contract OrderProcessorErc20 {
         emit HandedOff(order.buyer, seller, order.shipper, shipment);
     }
 
-    function ship(string memory orderId) external payable {
+    function ship(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
-        require(msg.value >= order.price, "Not enough collateral");
+        // require(msg.value >= order.price, "Not enough collateral");
         require(order.state == State.HandedOff, "Order in incorrect state");
         require(order.shipper == msg.sender, "Only shipper can ship");
-        orders[orderId].deposits[msg.sender] = msg.value;
+        // orders[orderId].deposits[msg.sender] = msg.value;
         orders[orderId].shippedBlock = block.number;
         orders[orderId].state = State.Shipped;
         emit Shipped(order.buyer, seller, order.shipper, order.shipment);
     }
 
-    function accept(string memory orderId) external payable {
+    function accept(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
