@@ -133,10 +133,8 @@ contract OrderProcessorErc20 {
     function confirm(string memory orderId) external {
         require(msg.sender == seller, "Only seller can confirm an order");
         Order storage order = orders[orderId];
-        // require(msg.value >= order.price, "Not enough collateral");
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        // orders[orderId].deposits[msg.sender] = msg.value;
         orders[orderId].confirmedBlock = block.number;
         orders[orderId].state = State.Confirmed;
         address buyer = order.buyer;
@@ -158,10 +156,8 @@ contract OrderProcessorErc20 {
     function ship(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
-        // require(msg.value >= order.price, "Not enough collateral");
         require(order.state == State.HandedOff, "Order in incorrect state");
         require(order.shipper == msg.sender, "Only shipper can ship");
-        // orders[orderId].deposits[msg.sender] = msg.value;
         orders[orderId].shippedBlock = block.number;
         orders[orderId].state = State.Shipped;
         emit Shipped(order.buyer, seller, order.shipper, order.shipment);
@@ -232,7 +228,7 @@ contract OrderProcessorErc20 {
         return false;
     }
 
-    function withdraw(string memory orderId, address payable payee) external {
+    function withdraw(string memory orderId, address payee) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(
@@ -242,13 +238,8 @@ contract OrderProcessorErc20 {
         uint256 payment = order.deposits[payee];
         orders[orderId].deposits[payee] = 0;
         require(
-            address(this).balance >= payment,
-            "Address: insufficient balance"
-        );
-        (bool success, ) = payee.call{value: payment}("");
-        require(
-            success,
-            "Address: unable to send value, recipient may have reverted"
+            token.transfer(address(payee), price + shipping),
+            "Token transfer failed"
         );
     }
 
