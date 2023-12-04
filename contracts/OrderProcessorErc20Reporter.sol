@@ -35,11 +35,13 @@ contract OrderProcessorErc20Reporter {
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
+    address public immutable seller;
+    address public immutable reporter;
+    address public immutable arbiter;
+    address public immutable token;
+
+    IERC20 immutable erc20;
     uint256 sequence;
-    IERC20 immutable token;
-    address immutable seller;
-    address immutable reporter;
-    address immutable arbiter;
     mapping(string => Order) orders;
 
     event Submitted(
@@ -92,12 +94,13 @@ contract OrderProcessorErc20Reporter {
     );
     event Withdrawn(address indexed payee, uint256 amount);
 
-    constructor(address token_, address reporter_, address arbiter_) {
-        sequence = 1;
-        token = IERC20(token_);
+    constructor(address reporter_, address arbiter_, address token_) {
         seller = msg.sender;
         reporter = reporter_;
         arbiter = arbiter_;
+        token = token_;
+        erc20 = IERC20(token_);
+        sequence = 1;
     }
 
     function submit(
