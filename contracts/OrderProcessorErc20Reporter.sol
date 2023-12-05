@@ -109,10 +109,6 @@ contract OrderProcessorErc20Reporter {
         uint256 shipping,
         bytes memory metadata
     ) external {
-        require(
-            token.transferFrom(msg.sender, address(this), price + shipping),
-            "Token transfer failed"
-        );
         orders[orderId].sequence = sequence++;
         orders[orderId].buyer = msg.sender;
         orders[orderId].price = price;
@@ -122,6 +118,10 @@ contract OrderProcessorErc20Reporter {
         orders[orderId].state = State.Submitted;
         orders[orderId].metadata = metadata;
         emit Submitted(msg.sender, seller, reporter, orderId);
+        require(
+            token.transferFrom(msg.sender, address(this), price + shipping),
+            "Token transfer failed"
+        );
     }
 
     function confirm(string memory orderId) external {
