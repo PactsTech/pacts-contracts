@@ -119,7 +119,7 @@ contract OrderProcessorErc20Reporter {
         orders[orderId].metadata = metadata;
         emit Submitted(msg.sender, seller, reporter, orderId);
         require(
-            token.transferFrom(msg.sender, address(this), price + shipping),
+            erc20.transferFrom(msg.sender, address(this), price + shipping),
             "Token transfer failed"
         );
     }
@@ -236,7 +236,7 @@ contract OrderProcessorErc20Reporter {
         uint256 payment = order.deposits[payee];
         orders[orderId].deposits[payee] = 0;
         require(
-            token.transfer(address(payee), payment),
+            erc20.transfer(address(payee), payment),
             "Token transfer failed"
         );
     }
