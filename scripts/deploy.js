@@ -4,12 +4,12 @@
 // You can also run a script with `npx hardhat run <script>`. If you do that, Hardhat
 // will compile your contracts, add the Hardhat Runtime Environment's members to the
 // global scope, and execute the script.
-import { ethers } from 'hardhat';
+import hre from 'hardhat';
 
 try {
-  const [deployer] = await ethers.getSigners();
+  const [deployer] = await hre.ethers.getSigners();
   console.log(`Deploying the contracts with account: ${deployer.address}`);
-  const processor = await ethers.deployContract('OrderProcessor', []);
+  const processor = await hre.ethers.deployContract('OrderProcessor', []);
   await processor.waitForDeployment();
   console.log(`Token address: ${await processor.getAddress()}`);
 } catch (error) {
