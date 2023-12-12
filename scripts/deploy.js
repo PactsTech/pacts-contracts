@@ -7,7 +7,7 @@
 import hre from 'hardhat';
 
 try {
-  const [deployer] = await hre.ethers.getSigners();
+  const [seller, pacts] = await hre.ethers.getSigners();
   console.log(`Deploying the contracts with account: ${deployer.address}`);
   const processor = await hre.ethers.deployContract('OrderProcessor', []);
   await processor.waitForDeployment();
