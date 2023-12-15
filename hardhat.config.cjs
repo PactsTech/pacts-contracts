@@ -1,8 +1,8 @@
 require('@nomicfoundation/hardhat-toolbox');
 
-const LOCAL_SELLER_PRIVATE_KEY = 'ac4e81857c78cc6cafca3776913f2c9a81a8b8f41c9e614ec652aed0ed5bc77f';
-const LOCAL_BUYER_PRIVATE_KEY = '4a19e027398dea6c53a237e4b5c4fdfe914628a26df3ab65335227f0560f8289';
-const LOCAL_PACTS_PRIVATE_KEY = '1d7608900595dca1a1e06cc4bdc2247a2c80dfdd42b0dcdc3f83140d24145026';
+const LOCAL_SELLER_PRIVATE_KEY = '0x9c7f3fdba28b901a55a024605dbf533d7b7fd2ca5b3e9eb9ddfe7aa6bc86740b';
+const LOCAL_BUYER_PRIVATE_KEY = '0x4412241fc4a32478125f83c4d13f57127e63d38e7ee9e5df1689ecf36c79958a';
+const LOCAL_PACTS_PRIVATE_KEY = '0x678cd8bdf84ffd7fc5144d2772b2076434f6448ce9c3d7793977423f1b08e343';
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

@@ -1,7 +1,7 @@
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers.js';
 import { expect } from 'chai';
 
-describe('OrderProcessorErc20Reporter', () => {
+describe('OrderProcessorReporterErc20', () => {
   // We define a fixture to reuse the same setup in every test.
   // We use loadFixture to run this setup once, snapshot that state,
   // and reset Hardhat Network to that snapshot in every test.
@@ -9,7 +9,7 @@ describe('OrderProcessorErc20Reporter', () => {
     const [seller, reporter, arbiter, buyer] = await ethers.getSigners();
     const TestToken = await ethers.getContractFactory('TestToken');
     const token = await TestToken.deploy(1000000000, buyer);
-    const OrderProcessor = await ethers.getContractFactory('OrderProcessorErc20Reporter');
+    const OrderProcessor = await ethers.getContractFactory('OrderProcessorReporterErc20');
     const processor = await OrderProcessor.deploy(token.target, reporter, arbiter);
     return { token, processor, reporter, arbiter, seller, buyer };
   };

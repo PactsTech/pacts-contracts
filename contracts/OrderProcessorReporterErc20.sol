@@ -31,7 +31,7 @@ struct Order {
     bytes shipmentReporter;
 }
 
-contract OrderProcessorErc20Reporter {
+contract OrderProcessorReporterErc20 {
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
