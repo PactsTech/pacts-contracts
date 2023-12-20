@@ -1,95 +1,90 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-// Uncomment this line to use console.log
-// import "hardhat/console.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+contract OrderProcessorReporterErc20 is AccessControlEnumerable {
+    enum State {
+        Submitted,
+        Confirmed,
+        Shipped,
+        Delivered,
+        Failed,
+        Aborted,
+        Canceled,
+        Disputed
+    }
 
-enum State {
-    Submitted,
-    Confirmed,
-    HandedOff,
-    Shipped,
-    Accepted,
-    Delivered,
-    Aborted,
-    Canceled,
-    Disputed
-}
+    struct Order {
+        uint256 sequence;
+        address buyer;
+        uint256 price;
+        uint256 shipping;
+        mapping(address => uint256) deposits;
+        uint256 submittedBlock;
+        uint256 confirmedBlock;
+        uint256 shippedBlock;
+        uint256 deliveredBlock;
+        uint256 failedBlock;
+        State state;
+        bytes metadata;
+        bytes shipmentBuyer;
+        bytes shipmentReporter;
+    }
 
-struct Order {
-    uint256 sequence;
-    address buyer;
-    address shipper;
-    uint256 price;
-    uint256 shipping;
-    mapping(address => uint256) deposits;
-    uint256 submittedBlock;
-    uint256 confirmedBlock;
-    uint256 shippedBlock;
-    uint256 deliveredBlock;
-    State state;
-    bytes shipment;
-    bytes metadata;
-}
+    bytes32 public constant REPORTER_ROLE = keccak256("REPORTER_ROLE");
+    bytes32 public constant ARBITER_ROLE = keccak256("ARBITER_ROLE");
 
-contract OrderProcessorErc20 {
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
+    address public immutable token;
+
+    IERC20 immutable erc20;
     uint256 sequence;
-    IERC20 immutable token;
-    address immutable seller;
-    address immutable arbiter;
     mapping(string => Order) orders;
 
     event Submitted(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
+        address indexed reporter_,
         string orderId
     );
     event Confirmed(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
+        address indexed reporter_,
         string orderId
-    );
-    event HandedOff(
-        address indexed buyer,
-        address indexed seller_,
-        address indexed shipper,
-        bytes shipment
     );
     event Shipped(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
-        bytes _shipment
-    );
-    event Accepted(
-        address indexed buyer,
-        address indexed seller_,
-        address indexed shipper,
-        bytes shipment
+        address indexed reporter_,
+        string orderId,
+        bytes shipmentBuyer,
+        bytes shipmentReporter
     );
     event Delivered(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
-        bytes shipment
+        address indexed reporter_,
+        string orderId,
+        bytes shipmentBuyer,
+        bytes shipmentReporter
     );
-    event Canceled(
+    event Failed(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
-        string orderId
+        address indexed reporter_,
+        string orderId,
+        bytes shipmentBuyer,
+        bytes shipmentReporter
     );
     event Aborted(
         address indexed buyer,
         address indexed seller_,
-        address indexed shipper,
+        address indexed reporter_,
         string orderId
     );
     event Disputed(
@@ -100,103 +95,122 @@ contract OrderProcessorErc20 {
     );
     event Withdrawn(address indexed payee, uint256 amount);
 
-    constructor(address token_, address arbiter_) {
+    constructor(address reporter, address arbiter, address token_) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(REPORTER_ROLE, reporter);
+        _grantRole(ARBITER_ROLE, arbiter);
+        token = token_;
+        erc20 = IERC20(token_);
         sequence = 1;
-        token = IERC20(token_);
-        seller = msg.sender;
-        arbiter = arbiter_;
     }
 
     function submit(
         string memory orderId,
-        address shipper,
         uint256 price,
         uint256 shipping,
         bytes memory metadata
     ) external {
-        require(
-            token.transferFrom(msg.sender, address(this), price + shipping),
-            "Token transfer failed"
-        );
         orders[orderId].sequence = sequence++;
         orders[orderId].buyer = msg.sender;
-        orders[orderId].shipper = shipper;
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
         orders[orderId].deposits[msg.sender] = price + shipping;
         orders[orderId].submittedBlock = block.number;
         orders[orderId].state = State.Submitted;
         orders[orderId].metadata = metadata;
-        emit Submitted(msg.sender, seller, shipper, orderId);
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Submitted(msg.sender, seller, reporter, orderId);
+        require(
+            erc20.transferFrom(msg.sender, address(this), price + shipping),
+            "Token transfer failed"
+        );
     }
 
-    function confirm(string memory orderId) external {
-        require(msg.sender == seller, "Only seller can confirm an order");
+    function confirm(
+        string memory orderId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
         orders[orderId].confirmedBlock = block.number;
         orders[orderId].state = State.Confirmed;
         address buyer = order.buyer;
-        address shipper = order.shipper;
-        emit Confirmed(buyer, seller, shipper, orderId);
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Confirmed(buyer, seller, reporter, orderId);
     }
 
-    function handOff(string memory orderId, bytes memory shipment) external {
-        require(msg.sender == seller, "Only seller can confirm an order");
+    function ship(
+        string memory orderId,
+        bytes memory shipmentBuyer,
+        bytes memory shipmentReporter
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Confirmed, "Order in incorrect state");
-        require(seller == msg.sender, "Only seller can handoff order");
-        orders[orderId].shipment = shipment;
-        orders[orderId].state = State.HandedOff;
-        emit HandedOff(order.buyer, seller, order.shipper, shipment);
-    }
-
-    function ship(string memory orderId) external {
-        Order storage order = orders[orderId];
-        require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.HandedOff, "Order in incorrect state");
-        require(order.shipper == msg.sender, "Only shipper can ship");
         orders[orderId].shippedBlock = block.number;
         orders[orderId].state = State.Shipped;
-        emit Shipped(order.buyer, seller, order.shipper, order.shipment);
+        orders[orderId].shipmentBuyer = shipmentBuyer;
+        orders[orderId].shipmentReporter = shipmentReporter;
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Shipped(
+            order.buyer,
+            seller,
+            reporter,
+            orderId,
+            shipmentBuyer,
+            shipmentReporter
+        );
     }
 
-    function accept(string memory orderId) external {
+    function deliver(string memory orderId) external onlyRole(REPORTER_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
-        require(order.buyer == msg.sender, "Only buyer can accept");
-        orders[orderId].state = State.Accepted;
-        emit Accepted(order.buyer, seller, order.shipper, order.shipment);
-    }
-
-    function deliver(string memory orderId) external {
-        Order storage order = orders[orderId];
-        require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.Accepted, "Order in incorrect state");
-        require(order.shipper == msg.sender, "Only shipper can deliver");
+        orders[orderId].deliveredBlock = block.number;
         orders[orderId].state = State.Delivered;
-        emit Delivered(order.buyer, seller, order.shipper, order.shipment);
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Delivered(
+            order.buyer,
+            seller,
+            reporter,
+            orderId,
+            order.shipmentBuyer,
+            order.shipmentReporter
+        );
     }
 
-    function cancel(string memory orderId) external {
+    function fail(string memory orderId) external onlyRole(REPORTER_ROLE) {
+        Order storage order = orders[orderId];
+        require(order.sequence > 0, "Order does not exist");
+        require(order.state == State.Shipped, "Order in incorrect state");
+        orders[orderId].failedBlock = block.number;
+        orders[orderId].state = State.Failed;
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Failed(
+            order.buyer,
+            seller,
+            reporter,
+            orderId,
+            order.shipmentBuyer,
+            order.shipmentReporter
+        );
+    }
+
+    function abort(
+        string memory orderId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        require(order.buyer == msg.sender, "Only buyer can cancel an order");
-        orders[orderId].state = State.Canceled;
-        emit Canceled(order.buyer, seller, order.shipper, orderId);
-    }
-
-    function abort(string memory orderId) external {
-        Order storage order = orders[orderId];
-        require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.Submitted, "Order in incorrect state");
-        require(seller == msg.sender, "Only seller can abort an order");
         orders[orderId].state = State.Aborted;
-        emit Aborted(order.buyer, seller, order.shipper, orderId);
+        address seller = getSeller();
+        address reporter = getReporter();
+        emit Aborted(order.buyer, seller, reporter, orderId);
     }
 
     function dispute(string memory orderId) external {
@@ -205,6 +219,8 @@ contract OrderProcessorErc20 {
         require(order.state == State.Submitted, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only a buyer can dispute");
         orders[orderId].state = State.Disputed;
+        address seller = getSeller();
+        address arbiter = getArbiter();
         emit Disputed(order.buyer, seller, arbiter, orderId);
     }
 
@@ -213,11 +229,8 @@ contract OrderProcessorErc20 {
         address payee
     ) public view returns (bool) {
         Order storage order = orders[orderId];
+        address seller = getSeller();
         if (payee == seller) {
-            return
-                order.state == State.Delivered &&
-                block.number >= (order.deliveredBlock + WAIT_BLOCKS);
-        } else if (payee == order.shipper) {
             return
                 order.state == State.Delivered &&
                 block.number >= (order.deliveredBlock + WAIT_BLOCKS);
@@ -238,7 +251,7 @@ contract OrderProcessorErc20 {
         uint256 payment = order.deposits[payee];
         orders[orderId].deposits[payee] = 0;
         require(
-            token.transfer(address(payee), payment),
+            erc20.transfer(address(payee), payment),
             "Token transfer failed"
         );
     }
@@ -251,7 +264,6 @@ contract OrderProcessorErc20 {
         returns (
             uint256 sequence_,
             address buyer,
-            address shipper,
             uint256 price,
             uint256 shipping,
             uint256 submittedBlock,
@@ -259,15 +271,15 @@ contract OrderProcessorErc20 {
             uint256 shippedBlock,
             uint256 deliveredBlock,
             uint8 state,
-            bytes memory shipment,
-            bytes memory metadata
+            bytes memory metadata,
+            bytes memory shipmentBuyer,
+            bytes memory shipmentReporter
         )
     {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         sequence_ = order.sequence;
         buyer = order.buyer;
-        shipper = order.shipper;
         price = order.price;
         shipping = order.shipping;
         submittedBlock = order.submittedBlock;
@@ -275,7 +287,20 @@ contract OrderProcessorErc20 {
         shippedBlock = order.shippedBlock;
         deliveredBlock = order.deliveredBlock;
         state = uint8(order.state);
-        shipment = order.shipment;
         metadata = order.metadata;
+        shipmentBuyer = order.shipmentBuyer;
+        shipmentReporter = order.shipmentReporter;
+    }
+
+    function getSeller() internal view returns (address) {
+        return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
+    }
+
+    function getReporter() internal view returns (address) {
+        return getRoleMember(REPORTER_ROLE, 0);
+    }
+
+    function getArbiter() internal view returns (address) {
+        return getRoleMember(ARBITER_ROLE, 0);
     }
 }
