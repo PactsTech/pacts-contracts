@@ -10,7 +10,7 @@ describe('OrderProcessorReporterErc20', () => {
     const TestToken = await ethers.getContractFactory('TestToken');
     const token = await TestToken.deploy(1000000000, buyer);
     const OrderProcessor = await ethers.getContractFactory('OrderProcessorReporterErc20');
-    const processor = await OrderProcessor.deploy(token.target, reporter, arbiter);
+    const processor = await OrderProcessor.deploy(reporter, arbiter, token.target);
     return { token, processor, reporter, arbiter, seller, buyer };
   };
 

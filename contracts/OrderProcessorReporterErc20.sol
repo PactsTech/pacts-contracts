@@ -1,43 +1,44 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-enum State {
-    Submitted,
-    Confirmed,
-    Shipped,
-    Delivered,
-    Failed,
-    Aborted,
-    Canceled,
-    Disputed
-}
+contract OrderProcessorReporterErc20 is AccessControlEnumerable {
+    enum State {
+        Submitted,
+        Confirmed,
+        Shipped,
+        Delivered,
+        Failed,
+        Aborted,
+        Canceled,
+        Disputed
+    }
 
-struct Order {
-    uint256 sequence;
-    address buyer;
-    uint256 price;
-    uint256 shipping;
-    mapping(address => uint256) deposits;
-    uint256 submittedBlock;
-    uint256 confirmedBlock;
-    uint256 shippedBlock;
-    uint256 deliveredBlock;
-    uint256 failedBlock;
-    State state;
-    bytes metadata;
-    bytes shipmentBuyer;
-    bytes shipmentReporter;
-}
+    struct Order {
+        uint256 sequence;
+        address buyer;
+        uint256 price;
+        uint256 shipping;
+        mapping(address => uint256) deposits;
+        uint256 submittedBlock;
+        uint256 confirmedBlock;
+        uint256 shippedBlock;
+        uint256 deliveredBlock;
+        uint256 failedBlock;
+        State state;
+        bytes metadata;
+        bytes shipmentBuyer;
+        bytes shipmentReporter;
+    }
 
-contract OrderProcessorReporterErc20 {
+    bytes32 public constant REPORTER_ROLE = keccak256("REPORTER_ROLE");
+    bytes32 public constant ARBITER_ROLE = keccak256("ARBITER_ROLE");
+
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
-    address public immutable seller;
-    address public immutable reporter;
-    address public immutable arbiter;
     address public immutable token;
 
     IERC20 immutable erc20;
@@ -94,10 +95,10 @@ contract OrderProcessorReporterErc20 {
     );
     event Withdrawn(address indexed payee, uint256 amount);
 
-    constructor(address reporter_, address arbiter_, address token_) {
-        seller = msg.sender;
-        reporter = reporter_;
-        arbiter = arbiter_;
+    constructor(address reporter, address arbiter, address token_) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(REPORTER_ROLE, reporter);
+        _grantRole(ARBITER_ROLE, arbiter);
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
@@ -117,6 +118,8 @@ contract OrderProcessorReporterErc20 {
         orders[orderId].submittedBlock = block.number;
         orders[orderId].state = State.Submitted;
         orders[orderId].metadata = metadata;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Submitted(msg.sender, seller, reporter, orderId);
         require(
             erc20.transferFrom(msg.sender, address(this), price + shipping),
@@ -124,14 +127,17 @@ contract OrderProcessorReporterErc20 {
         );
     }
 
-    function confirm(string memory orderId) external {
-        require(msg.sender == seller, "Only seller can confirm an order");
+    function confirm(
+        string memory orderId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
         orders[orderId].confirmedBlock = block.number;
         orders[orderId].state = State.Confirmed;
         address buyer = order.buyer;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Confirmed(buyer, seller, reporter, orderId);
     }
 
@@ -139,8 +145,7 @@ contract OrderProcessorReporterErc20 {
         string memory orderId,
         bytes memory shipmentBuyer,
         bytes memory shipmentReporter
-    ) external {
-        require(seller == msg.sender, "Only seller can ship");
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Confirmed, "Order in incorrect state");
@@ -148,6 +153,8 @@ contract OrderProcessorReporterErc20 {
         orders[orderId].state = State.Shipped;
         orders[orderId].shipmentBuyer = shipmentBuyer;
         orders[orderId].shipmentReporter = shipmentReporter;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Shipped(
             order.buyer,
             seller,
@@ -158,13 +165,14 @@ contract OrderProcessorReporterErc20 {
         );
     }
 
-    function deliver(string memory orderId) external {
-        require(reporter == msg.sender, "Only reporter can deliver");
+    function deliver(string memory orderId) external onlyRole(REPORTER_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
         orders[orderId].deliveredBlock = block.number;
         orders[orderId].state = State.Delivered;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Delivered(
             order.buyer,
             seller,
@@ -175,13 +183,14 @@ contract OrderProcessorReporterErc20 {
         );
     }
 
-    function fail(string memory orderId) external {
-        require(reporter == msg.sender, "Only reporter can fail");
+    function fail(string memory orderId) external onlyRole(REPORTER_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
         orders[orderId].failedBlock = block.number;
         orders[orderId].state = State.Failed;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Failed(
             order.buyer,
             seller,
@@ -192,12 +201,15 @@ contract OrderProcessorReporterErc20 {
         );
     }
 
-    function abort(string memory orderId) external {
+    function abort(
+        string memory orderId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        require(seller == msg.sender, "Only seller can abort an order");
         orders[orderId].state = State.Aborted;
+        address seller = getSeller();
+        address reporter = getReporter();
         emit Aborted(order.buyer, seller, reporter, orderId);
     }
 
@@ -207,6 +219,8 @@ contract OrderProcessorReporterErc20 {
         require(order.state == State.Submitted, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only a buyer can dispute");
         orders[orderId].state = State.Disputed;
+        address seller = getSeller();
+        address arbiter = getArbiter();
         emit Disputed(order.buyer, seller, arbiter, orderId);
     }
 
@@ -215,6 +229,7 @@ contract OrderProcessorReporterErc20 {
         address payee
     ) public view returns (bool) {
         Order storage order = orders[orderId];
+        address seller = getSeller();
         if (payee == seller) {
             return
                 order.state == State.Delivered &&
@@ -275,5 +290,17 @@ contract OrderProcessorReporterErc20 {
         metadata = order.metadata;
         shipmentBuyer = order.shipmentBuyer;
         shipmentReporter = order.shipmentReporter;
+    }
+
+    function getSeller() public view returns (address) {
+        return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
+    }
+
+    function getReporter() public view returns (address) {
+        return getRoleMember(REPORTER_ROLE, 0);
+    }
+
+    function getArbiter() public view returns (address) {
+        return getRoleMember(ARBITER_ROLE, 0);
     }
 }
