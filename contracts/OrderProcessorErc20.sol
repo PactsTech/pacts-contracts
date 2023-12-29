@@ -45,6 +45,11 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     uint256 sequence;
     mapping(string => Order) orders;
 
+    event Deployed(
+        address indexed seller_,
+        address indexed reporter_,
+        address indexed arbiter_
+    );
     event Submitted(
         address indexed buyer,
         address indexed seller_,
@@ -102,6 +107,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
+        emit Deployed(msg.sender, reporter, arbiter);
     }
 
     function submit(
