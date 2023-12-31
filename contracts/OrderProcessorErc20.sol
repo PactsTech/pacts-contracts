@@ -46,56 +46,56 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     mapping(string => Order) orders;
 
     event Deployed(
-        address indexed seller_,
-        address indexed reporter_,
-        address indexed arbiter_
+        address indexed seller,
+        address indexed reporter,
+        address indexed arbiter
     );
     event Submitted(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId
     );
     event Confirmed(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId
     );
     event Shipped(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Delivered(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Failed(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Aborted(
         address indexed buyer,
-        address indexed seller_,
-        address indexed reporter_,
+        address indexed seller,
+        address indexed reporter,
         string orderId
     );
     event Disputed(
         address indexed buyer,
-        address indexed seller_,
-        address indexed arbiter_,
+        address indexed seller,
+        address indexed arbiter,
         string orderId
     );
     event Withdrawn(address indexed payee, uint256 amount);
