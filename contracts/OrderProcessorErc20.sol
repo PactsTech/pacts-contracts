@@ -19,6 +19,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     struct Order {
         uint256 sequence;
         address buyer;
+        bytes buyerPublicKey;
         uint256 price;
         uint256 shipping;
         mapping(address => uint256) deposits;
@@ -31,6 +32,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         bytes metadata;
         bytes shipmentBuyer;
         bytes shipmentReporter;
+        bytes shipmentArbiter;
     }
 
     bytes32 public constant REPORTER_ROLE = keccak256("REPORTER_ROLE");
@@ -39,85 +41,103 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
+    string public name;
+    bytes public reporterPublicKey;
+    bytes public arbiterPublicKey;
     address public immutable token;
-
     IERC20 immutable erc20;
+
     uint256 sequence;
     mapping(string => Order) orders;
 
     event Deployed(
         address indexed seller,
         address indexed reporter,
-        address indexed arbiter
+        address indexed arbiter,
+        string name
     );
     event Submitted(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
-        string orderId
+        string orderId,
+        string name
     );
     event Confirmed(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
         string orderId
     );
     event Shipped(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Delivered(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Failed(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
         string orderId,
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
     event Aborted(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed reporter,
         string orderId
     );
     event Disputed(
-        address indexed buyer,
         address indexed seller,
+        address indexed buyer,
         address indexed arbiter,
         string orderId
     );
     event Withdrawn(address indexed payee, uint256 amount);
 
-    constructor(address reporter, address arbiter, address token_) {
+    constructor(
+        string memory name_,
+        address reporter,
+        bytes memory reporterPublicKey_,
+        address arbiter,
+        bytes memory arbiterPublicKey_,
+        address token_
+    ) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REPORTER_ROLE, reporter);
         _grantRole(ARBITER_ROLE, arbiter);
+        name = name_;
+        reporterPublicKey = reporterPublicKey_;
+        arbiterPublicKey = arbiterPublicKey_;
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
-        emit Deployed(msg.sender, reporter, arbiter);
+        emit Deployed(msg.sender, reporter, arbiter, name);
     }
 
     function submit(
         string memory orderId,
+        bytes memory buyerPublicKey,
         uint256 price,
         uint256 shipping,
         bytes memory metadata
     ) external {
+        // TODO validate buyer public key?
         orders[orderId].sequence = sequence++;
         orders[orderId].buyer = msg.sender;
+        orders[orderId].buyerPublicKey = buyerPublicKey;
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
         orders[orderId].deposits[msg.sender] = price + shipping;
@@ -126,7 +146,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         orders[orderId].metadata = metadata;
         address seller = getSeller();
         address reporter = getReporter();
-        emit Submitted(msg.sender, seller, reporter, orderId);
+        emit Submitted(seller, msg.sender, reporter, orderId, name);
         require(
             erc20.transferFrom(msg.sender, address(this), price + shipping),
             "Token transfer failed"
@@ -144,7 +164,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         address buyer = order.buyer;
         address seller = getSeller();
         address reporter = getReporter();
-        emit Confirmed(buyer, seller, reporter, orderId);
+        emit Confirmed(seller, buyer, reporter, orderId);
     }
 
     function ship(
@@ -162,8 +182,8 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         address seller = getSeller();
         address reporter = getReporter();
         emit Shipped(
-            order.buyer,
             seller,
+            order.buyer,
             reporter,
             orderId,
             shipmentBuyer,
@@ -180,8 +200,8 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         address seller = getSeller();
         address reporter = getReporter();
         emit Delivered(
-            order.buyer,
             seller,
+            order.buyer,
             reporter,
             orderId,
             order.shipmentBuyer,
@@ -198,8 +218,8 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         address seller = getSeller();
         address reporter = getReporter();
         emit Failed(
-            order.buyer,
             seller,
+            order.buyer,
             reporter,
             orderId,
             order.shipmentBuyer,
@@ -216,7 +236,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         orders[orderId].state = State.Aborted;
         address seller = getSeller();
         address reporter = getReporter();
-        emit Aborted(order.buyer, seller, reporter, orderId);
+        emit Aborted(seller, order.buyer, reporter, orderId);
     }
 
     function dispute(string memory orderId) external {
@@ -227,7 +247,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         orders[orderId].state = State.Disputed;
         address seller = getSeller();
         address arbiter = getArbiter();
-        emit Disputed(order.buyer, seller, arbiter, orderId);
+        emit Disputed(seller, order.buyer, arbiter, orderId);
     }
 
     function withdrawalAllowed(
@@ -270,6 +290,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         returns (
             uint256 sequence_,
             address buyer,
+            bytes memory buyerPublicKey,
             uint256 price,
             uint256 shipping,
             uint256 submittedBlock,
@@ -286,6 +307,7 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
         require(order.sequence > 0, "Order does not exist");
         sequence_ = order.sequence;
         buyer = order.buyer;
+        buyerPublicKey = order.buyerPublicKey;
         price = order.price;
         shipping = order.shipping;
         submittedBlock = order.submittedBlock;
