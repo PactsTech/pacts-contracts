@@ -42,8 +42,8 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     uint256 public constant WAIT_BLOCKS = 21300;
 
     string public name;
-    bytes public reporterPublicKey;
-    bytes public arbiterPublicKey;
+    string public reporterPublicKey;
+    string public arbiterPublicKey;
     address public immutable token;
     IERC20 immutable erc20;
 
@@ -110,9 +110,9 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
     constructor(
         string memory name_,
         address reporter,
-        bytes memory reporterPublicKey_,
+        string memory reporterPublicKey_,
         address arbiter,
-        bytes memory arbiterPublicKey_,
+        string memory arbiterPublicKey_,
         address token_
     ) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -280,6 +280,14 @@ contract OrderProcessorReporterErc20 is AccessControlEnumerable {
             erc20.transfer(address(payee), payment),
             "Token transfer failed"
         );
+    }
+
+    function getReporterPublicKey() public view returns (string memory) {
+        return reporterPublicKey;
+    }
+
+    function getArbiterPublicKey() public view returns (string memory) {
+        return arbiterPublicKey;
     }
 
     function getOrder(
