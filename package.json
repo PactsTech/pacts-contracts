@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "test": "npx hardhat test",
-    "compile": "npx hardhat compile"
+    "compile": "npx hardhat compile",
+    "abi": "jq '.abi' ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.json > ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.abi.json"
   },
   "keywords": [],
   "author": "",
