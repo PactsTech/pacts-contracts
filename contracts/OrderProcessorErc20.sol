@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import {AccessControlEnumerable} from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract OrderProcessorReporterErc20 is AccessControlEnumerable {
+contract OrderProcessorErc20 is AccessControlEnumerable {
     enum State {
         Submitted,
         Confirmed,
