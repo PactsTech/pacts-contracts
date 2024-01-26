@@ -7,7 +7,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract OrderProcessorErc20 is AccessControlEnumerable {
     enum State {
         Submitted,
-        Confirmed,
         Shipped,
         Delivered,
         Failed,
@@ -24,7 +23,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         uint256 shipping;
         mapping(address => uint256) deposits;
         uint256 submittedBlock;
-        uint256 confirmedBlock;
         uint256 shippedBlock;
         uint256 deliveredBlock;
         uint256 failedBlock;
@@ -62,12 +60,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed reporter,
         string orderId,
         string name
-    );
-    event Confirmed(
-        address indexed seller,
-        address indexed buyer,
-        address indexed reporter,
-        string orderId
     );
     event Shipped(
         address indexed seller,
@@ -153,20 +145,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         );
     }
 
-    function confirm(
-        string memory orderId
-    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        Order storage order = orders[orderId];
-        require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.Submitted, "Order in incorrect state");
-        orders[orderId].confirmedBlock = block.number;
-        orders[orderId].state = State.Confirmed;
-        address buyer = order.buyer;
-        address seller = getSeller();
-        address reporter = getReporter();
-        emit Confirmed(seller, buyer, reporter, orderId);
-    }
-
     function ship(
         string memory orderId,
         bytes memory shipmentBuyer,
@@ -174,7 +152,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.Confirmed, "Order in incorrect state");
+        require(order.state == State.Submitted, "Order in incorrect state");
         orders[orderId].shippedBlock = block.number;
         orders[orderId].state = State.Shipped;
         orders[orderId].shipmentBuyer = shipmentBuyer;
@@ -302,7 +280,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             uint256 price,
             uint256 shipping,
             uint256 submittedBlock,
-            uint256 confirmedBlock,
             uint256 shippedBlock,
             uint256 deliveredBlock,
             uint8 state,
@@ -319,7 +296,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         price = order.price;
         shipping = order.shipping;
         submittedBlock = order.submittedBlock;
-        confirmedBlock = order.confirmedBlock;
         shippedBlock = order.shippedBlock;
         deliveredBlock = order.deliveredBlock;
         state = uint8(order.state);
