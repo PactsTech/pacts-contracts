@@ -126,7 +126,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         uint256 shipping,
         bytes memory metadata
     ) external {
-        // TODO validate buyer public key?
+        Order storage order = orders[orderId];
+        require(order.sequence == 0, "Order already exists");
         orders[orderId].sequence = sequence++;
         orders[orderId].buyer = msg.sender;
         orders[orderId].buyerPublicKey = buyerPublicKey;
