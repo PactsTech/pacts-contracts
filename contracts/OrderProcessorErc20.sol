@@ -39,7 +39,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     uint8 public constant VERSION = 1;
     uint256 public constant WAIT_BLOCKS = 21300;
 
-    string public name;
+    string public storeName;
     string public reporterPublicKey;
     string public arbiterPublicKey;
     address public immutable token;
@@ -52,14 +52,14 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed seller,
         address indexed reporter,
         address indexed arbiter,
-        string name
+        string storeName_
     );
     event Submitted(
         address indexed seller,
         address indexed buyer,
         address indexed reporter,
         string orderId,
-        string name
+        string storeName_
     );
     event Shipped(
         address indexed seller,
@@ -100,7 +100,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     event Withdrawn(address indexed payee, uint256 amount);
 
     constructor(
-        string memory name_,
+        string memory storeName_,
         address reporter,
         string memory reporterPublicKey_,
         address arbiter,
@@ -110,13 +110,13 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(REPORTER_ROLE, reporter);
         _grantRole(ARBITER_ROLE, arbiter);
-        name = name_;
+        storeName = storeName_;
         reporterPublicKey = reporterPublicKey_;
         arbiterPublicKey = arbiterPublicKey_;
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
-        emit Deployed(msg.sender, reporter, arbiter, name);
+        emit Deployed(msg.sender, reporter, arbiter, storeName);
     }
 
     function submit(
@@ -139,7 +139,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         orders[orderId].metadata = metadata;
         address seller = getSeller();
         address reporter = getReporter();
-        emit Submitted(seller, msg.sender, reporter, orderId, name);
+        emit Submitted(seller, msg.sender, reporter, orderId, storeName);
         require(
             erc20.transferFrom(msg.sender, address(this), price + shipping),
             "Token transfer failed"
