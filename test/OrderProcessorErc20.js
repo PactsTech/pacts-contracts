@@ -3,21 +3,19 @@ import { loadFixture } from '@nomicfoundation/hardhat-toolbox-viem/network-helpe
 import { expect } from 'chai';
 
 const storeName = `Bob's Widgets`;
-const reporterPublicKey = '03ccf19f6222dfa2c7f063b04c8cdc0586b12b26466ab2d09dd45e112f6c3abddf';
-const buyerPublicKey = '0x0310855103b6fada7e3d24cfd812941ac60d54254ef0c0ceb100bb93c4dc1b9146';
+const buyerPublicKey = '0x557c9f3fcc1296ed254d7fb2e9f086fb1fa3f90fd1e0f305d213f8a27d22e50e';
 
 describe('OrderProcessorErc20', () => {
   const deployOrderProcessorFixture = async () => {
     const publicClient = await hre.viem.getPublicClient();
     const [seller, reporter, arbiter, buyer] = await hre.viem.getWalletClients();
-    const publicKey = Buffer.from(reporterPublicKey, 'hex');
     const token = await hre.viem.deployContract('TestToken', [1000000000, buyer.account.address]);
     const processor = await hre.viem.deployContract('OrderProcessorErc20', [
       storeName,
       reporter.account.address,
-      publicKey,
+      buyerPublicKey,
       reporter.account.address,
-      publicKey,
+      buyerPublicKey,
       token.address
     ]);
     return { publicClient, token, processor, reporter, arbiter, seller, buyer };

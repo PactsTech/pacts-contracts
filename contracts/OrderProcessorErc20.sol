@@ -18,7 +18,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     struct Order {
         uint256 sequence;
         address buyer;
-        bytes buyerPublicKey;
+        bytes32 buyerPublicKey;
         uint256 price;
         uint256 shipping;
         mapping(address => uint256) deposits;
@@ -40,8 +40,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     uint256 public constant WAIT_BLOCKS = 21300;
 
     string public storeName;
-    string public reporterPublicKey;
-    string public arbiterPublicKey;
+    bytes32 public reporterPublicKey;
+    bytes32 public arbiterPublicKey;
     address public immutable token;
     IERC20 immutable erc20;
 
@@ -102,9 +102,9 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     constructor(
         string memory storeName_,
         address reporter,
-        string memory reporterPublicKey_,
+        bytes32 reporterPublicKey_,
         address arbiter,
-        string memory arbiterPublicKey_,
+        bytes32 arbiterPublicKey_,
         address token_
     ) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -121,7 +121,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
 
     function submit(
         string memory orderId,
-        bytes memory buyerPublicKey,
+        bytes32 buyerPublicKey,
         uint256 price,
         uint256 shipping,
         bytes memory metadata
@@ -261,11 +261,11 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         );
     }
 
-    function getReporterPublicKey() public view returns (string memory) {
+    function getReporterPublicKey() public view returns (bytes32) {
         return reporterPublicKey;
     }
 
-    function getArbiterPublicKey() public view returns (string memory) {
+    function getArbiterPublicKey() public view returns (bytes32) {
         return arbiterPublicKey;
     }
 
@@ -277,7 +277,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         returns (
             uint256 sequence_,
             address buyer,
-            bytes memory buyerPublicKey,
+            bytes32 buyerPublicKey,
             uint256 price,
             uint256 shipping,
             uint256 submittedBlock,
