@@ -299,14 +299,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         );
     }
 
-    function getReporterPublicKey() public view returns (bytes32) {
-        return reporterPublicKey;
-    }
-
-    function getArbiterPublicKey() public view returns (bytes32) {
-        return arbiterPublicKey;
-    }
-
     function getOrder(
         string memory orderId
     )
@@ -339,15 +331,15 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         shipmentReporter = order.shipmentReporter;
     }
 
-    function getSeller() internal view returns (address) {
+    function getSeller() public view returns (address) {
         return getRoleMember(DEFAULT_ADMIN_ROLE, 0);
     }
 
-    function getReporter() internal view returns (address) {
+    function getReporter() public view returns (address) {
         return getRoleMember(REPORTER_ROLE, 0);
     }
 
-    function getArbiter() internal view returns (address) {
+    function getArbiter() public view returns (address) {
         return getRoleMember(ARBITER_ROLE, 0);
     }
 }

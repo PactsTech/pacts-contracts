@@ -14,7 +14,7 @@ describe('OrderProcessorErc20', () => {
       storeName,
       reporter.account.address,
       buyerPublicKey,
-      reporter.account.address,
+      arbiter.account.address,
       buyerPublicKey,
       token.address
     ]);
@@ -22,6 +22,55 @@ describe('OrderProcessorErc20', () => {
   };
 
   describe('Orders', () => {
+    it('Should allow you to get the store name', async () => {
+      const { publicClient, processor } = await loadFixture(deployOrderProcessorFixture);
+      const publicProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        publicClient
+      });
+      const storeName = await publicProcessor.read.storeName([]);
+      expect(storeName).to.eq(`Bob's Widgets`, 'Store name should be set');
+    });
+
+    it('Should allow you to get the token address', async () => {
+      const { publicClient, token, processor } = await loadFixture(deployOrderProcessorFixture);
+      const publicProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        publicClient
+      });
+      const tokenAddress = await publicProcessor.read.token([]);
+      const lowerAddress = token.address.toLowerCase();
+      expect(tokenAddress.toLowerCase()).to.eq(lowerAddress, 'Token should be accessible');
+    });
+
+    it('Should allow you to get the seller address', async () => {
+      const { publicClient, processor, seller } = await loadFixture(deployOrderProcessorFixture);
+      const publicProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        publicClient
+      });
+      const sellerAddress = await publicProcessor.read.getSeller([]);
+      const lowerAddress = seller.account.address.toLowerCase();
+      expect(sellerAddress.toLowerCase()).to.eq(lowerAddress, 'Seller address should be set');
+    });
+
+    it('Should allow you to get the reporter address', async () => {
+      const { publicClient, processor, reporter } = await loadFixture(deployOrderProcessorFixture);
+      const publicProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        publicClient
+      });
+      const reporterAddress = await publicProcessor.read.getReporter([]);
+      const lowerAddress = reporter.account.address.toLowerCase();
+      expect(reporterAddress.toLowerCase()).to.eq(lowerAddress, 'Reporter address should be set');
+    });
+
+    it('Should allow you to get the arbiter address', async () => {
+      const { publicClient, processor, arbiter } = await loadFixture(deployOrderProcessorFixture);
+      const publicProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        publicClient
+      });
+      const arbiterAddress = await publicProcessor.read.getArbiter([]);
+      const lowerAddress = arbiter.account.address.toLowerCase();
+      expect(arbiterAddress.toLowerCase()).to.eq(lowerAddress, 'Arbiter address should be set');
+    });
+
     it('Should allow you to create an order', async () => {
       const price = 10000000;
       const shipping = 1000000;
