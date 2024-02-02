@@ -163,7 +163,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     function ship(
         string memory orderId,
         bytes memory shipmentBuyer,
-        bytes memory shipmentReporter
+        bytes memory shipmentReporter,
+        bytes memory shipmentArbiter
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
@@ -172,6 +173,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].shipmentBuyer = shipmentBuyer;
         orders[orderId].shipmentReporter = shipmentReporter;
+        orders[orderId].shipmentArbiter = shipmentArbiter;
         address seller = getSeller();
         address reporter = getReporter();
         emit Shipped(
