@@ -12,21 +12,19 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Failed,
         Aborted,
         Canceled,
-        Disputed
+        Disputed,
+        Resolved
     }
 
     struct Order {
         uint256 sequence;
+        State state;
         address buyer;
         bytes32 buyerPublicKey;
         uint256 price;
         uint256 shipping;
+        uint256 lastModifiedBlock;
         mapping(address => uint256) deposits;
-        uint256 submittedBlock;
-        uint256 shippedBlock;
-        uint256 deliveredBlock;
-        uint256 failedBlock;
-        State state;
         bytes metadata;
         bytes shipmentBuyer;
         bytes shipmentReporter;
@@ -59,7 +57,9 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed buyer,
         address indexed reporter,
         string orderId,
-        string storeName_
+        string storeName_,
+        uint256 price,
+        uint256 shipping
     );
     event Shipped(
         address indexed seller,
@@ -97,6 +97,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed arbiter,
         string orderId
     );
+    event Resolved(
+        address indexed seller,
+        address indexed buyer,
+        address indexed arbiter,
+        string orderId
+    );
     event Withdrawn(address indexed payee, uint256 amount);
 
     constructor(
@@ -129,17 +135,25 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence == 0, "Order already exists");
         orders[orderId].sequence = sequence++;
+        orders[orderId].state = State.Submitted;
         orders[orderId].buyer = msg.sender;
         orders[orderId].buyerPublicKey = buyerPublicKey;
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
+        orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[msg.sender] = price + shipping;
-        orders[orderId].submittedBlock = block.number;
-        orders[orderId].state = State.Submitted;
         orders[orderId].metadata = metadata;
         address seller = getSeller();
         address reporter = getReporter();
-        emit Submitted(seller, msg.sender, reporter, orderId, storeName);
+        emit Submitted(
+            seller,
+            msg.sender,
+            reporter,
+            orderId,
+            storeName,
+            price,
+            shipping
+        );
         require(
             erc20.transferFrom(msg.sender, address(this), price + shipping),
             "Token transfer failed"
@@ -154,8 +168,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        orders[orderId].shippedBlock = block.number;
         orders[orderId].state = State.Shipped;
+        orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].shipmentBuyer = shipmentBuyer;
         orders[orderId].shipmentReporter = shipmentReporter;
         address seller = getSeller();
@@ -174,8 +188,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
-        orders[orderId].deliveredBlock = block.number;
         orders[orderId].state = State.Delivered;
+        orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
         address reporter = getReporter();
         emit Delivered(
@@ -192,8 +206,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
-        orders[orderId].failedBlock = block.number;
         orders[orderId].state = State.Failed;
+        orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
         address reporter = getReporter();
         emit Failed(
@@ -224,9 +238,28 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.state == State.Submitted, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only a buyer can dispute");
         orders[orderId].state = State.Disputed;
+        orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
         address arbiter = getArbiter();
         emit Disputed(seller, order.buyer, arbiter, orderId);
+    }
+
+    function resolve(
+        string memory orderId,
+        uint256 sellerDeposit,
+        uint256 buyerDeposit
+    ) external {
+        Order storage order = orders[orderId];
+        require(order.sequence > 0, "Order does not exist");
+        require(order.state == State.Disputed, "Order in incorrect state");
+        address arbiter = getArbiter();
+        require(arbiter == msg.sender, "Only a arbiter can resolve");
+        address seller = getSeller();
+        orders[orderId].state = State.Resolved;
+        orders[orderId].lastModifiedBlock = block.number;
+        orders[orderId].deposits[seller] = sellerDeposit;
+        orders[orderId].deposits[order.buyer] = buyerDeposit;
+        emit Resolved(seller, order.buyer, arbiter, orderId);
     }
 
     function withdrawalAllowed(
@@ -237,11 +270,14 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address seller = getSeller();
         if (payee == seller) {
             return
-                order.state == State.Delivered &&
-                block.number >= (order.deliveredBlock + WAIT_BLOCKS);
+                (order.state == State.Delivered ||
+                    order.state == State.Resolved) &&
+                block.number >= (order.lastModifiedBlock + WAIT_BLOCKS);
         } else if (payee == order.buyer) {
             return
-                order.state == State.Canceled || order.state == State.Aborted;
+                order.state == State.Canceled ||
+                order.state == State.Aborted ||
+                order.state == State.Resolved;
         }
         return false;
     }
@@ -254,6 +290,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             "payee is not allowed to withdraw"
         );
         uint256 payment = order.deposits[payee];
+        orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[payee] = 0;
         require(
             erc20.transfer(address(payee), payment),
@@ -276,14 +313,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         view
         returns (
             uint256 sequence_,
+            uint8 state,
             address buyer,
             bytes32 buyerPublicKey,
             uint256 price,
             uint256 shipping,
-            uint256 submittedBlock,
-            uint256 shippedBlock,
-            uint256 deliveredBlock,
-            uint8 state,
+            uint256 lastModifiedBlock,
             bytes memory metadata,
             bytes memory shipmentBuyer,
             bytes memory shipmentReporter
@@ -292,14 +327,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         sequence_ = order.sequence;
+        state = uint8(order.state);
         buyer = order.buyer;
         buyerPublicKey = order.buyerPublicKey;
         price = order.price;
         shipping = order.shipping;
-        submittedBlock = order.submittedBlock;
-        shippedBlock = order.shippedBlock;
-        deliveredBlock = order.deliveredBlock;
-        state = uint8(order.state);
+        lastModifiedBlock = order.lastModifiedBlock;
         metadata = order.metadata;
         shipmentBuyer = order.shipmentBuyer;
         shipmentReporter = order.shipmentReporter;

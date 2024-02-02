@@ -37,14 +37,12 @@ describe('OrderProcessorErc20', () => {
       await publicClient.waitForTransactionReceipt({ hash: submit });
       const [
         orderSequence,
+        orderState,
         orderBuyer,
         orderBuyerPublicKey,
         orderPrice,
         orderShipping,
-        orderSubmittedBlock,
-        orderShippedBlock,
-        orderDeliveredBlock,
-        orderState,
+        orderLastModifiedBlock,
         orderMetadata,
         orderShipmentBuyer,
         orderShipmentReporter
@@ -54,9 +52,7 @@ describe('OrderProcessorErc20', () => {
       expect(orderBuyerPublicKey).to.eq(buyerPublicKey, 'Buyer Public Key should be set');
       expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
       expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
-      expect(orderSubmittedBlock).to.eq(4n, 'Submitted block should be 4');
-      expect(orderShippedBlock).to.eq(0n, 'Shipped block should be 0');
-      expect(orderDeliveredBlock).to.eq(0n, 'Delivered block should be 0');
+      expect(orderLastModifiedBlock).to.eq(4n, 'Last modified block should be 4');
       expect(orderState).to.eq(0, 'State should be 0');
       expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
       expect(orderShipmentBuyer).to.eq('0x', 'Shipment Buyer should be 0x');
