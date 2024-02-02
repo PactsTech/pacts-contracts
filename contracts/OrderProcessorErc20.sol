@@ -227,6 +227,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
         orders[orderId].state = State.Aborted;
+        orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
         address reporter = getReporter();
         emit Aborted(seller, order.buyer, reporter, orderId);
