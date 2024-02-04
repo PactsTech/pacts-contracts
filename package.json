@@ -1,7 +1,7 @@
 {
-  "name": "pacts-contracts",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@pactstech/pacts-contracts",
+  "version": "0.1.0",
+  "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.",
   "type": "module",
   "main": "index.js",
   "files": [
@@ -14,13 +14,24 @@
     "abi": "jq '.abi' ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.json > ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.abi.json"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Jacob Breindel",
+  "license": "MIT",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^2.0.0",
     "hardhat": "^2.18.1"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0"
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pactstech/pacts-contracts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pactstech/pacts-contracts/issues"
+  },
+  "homepage": "https://github.com/pactstech/pacts-contracts#readme"
 }
