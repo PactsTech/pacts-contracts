@@ -8,6 +8,7 @@
     "/artifacts/contracts/*.json"
   ],
   "scripts": {
+    "prepublish": "npm run compile",
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
     "abi": "jq '.abi' ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.json > ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.abi.json"
@@ -16,12 +17,10 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "ethereumjs-wallet": "^1.0.2",
-    "ethers": "^6.9.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "^2.0.0",
     "hardhat": "^2.18.1"
   },
   "dependencies": {
-    "@nomicfoundation/hardhat-toolbox-viem": "^2.0.0",
     "@openzeppelin/contracts": "^5.0.0"
   }
 }
