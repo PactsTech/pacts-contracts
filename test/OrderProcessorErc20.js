@@ -125,7 +125,7 @@ describe('OrderProcessorErc20', () => {
         walletClient: seller
       });
       const shipmentHex = '0x68656c6c6f20776f726c6421';
-      const ship = await sellerProcessor.write.ship([id, shipmentHex, shipmentHex]);
+      const ship = await sellerProcessor.write.ship([id, shipmentHex, shipmentHex, shipmentHex]);
       await publicClient.waitForTransactionReceipt({ hash: ship });
       const [
         orderSequence,

@@ -13,7 +13,7 @@ try {
   console.log(`Deploying the contracts with account: ${seller.address}`);
   console.log(`Using artbiter and reporter: ${pacts.address}`);
   console.log(`Using erc20 token address: ${token}`);
-  const processor = await hre.ethers.deployContract('OrderProcessorReporterErc20', [pacts.address, pacts.address, token]);
+  const processor = await hre.ethers.deployContract('OrderProcessorErc20', [pacts.address, pacts.address, token]);
   await processor.waitForDeployment();
   console.log(`Token address: ${await processor.getAddress()}`);
 } catch (error) {
