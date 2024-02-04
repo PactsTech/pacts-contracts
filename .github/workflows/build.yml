@@ -1,4 +1,4 @@
-name: Build
+name: build
 
 on:
   push:
@@ -8,11 +8,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v2
-    - name: Set up Node.js
+    - name: Setup
       uses: actions/setup-node@v2
       with:
         node-version: '20'
