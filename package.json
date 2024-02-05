@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "prepublish": "npm run compile",
+    "release": "npx semantic-release@23",
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
     "abi": "jq '.abi' ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.json > ./artifacts/contracts/OrderProcessorErc20.sol/OrderProcessorErc20.abi.json"
@@ -18,7 +19,8 @@
   "license": "MIT",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^2.0.0",
-    "hardhat": "^2.18.1"
+    "hardhat": "^2.18.1",
+    "semantic-release": "^23.0.0"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.0.0"
