@@ -6,7 +6,9 @@
   "main": "index.js",
   "files": [
     "/contracts/**/*.sol",
-    "/artifacts/**/*"
+    "!/contracts/mocks/**/*",
+    "/artifacts/contracts/OrderProcessorErc20.sol/*",
+    "!/artifacts/contracts/mocks/**/*"
   ],
   "scripts": {
     "prepublish": "npm run compile",
