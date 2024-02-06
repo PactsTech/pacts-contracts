@@ -316,7 +316,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             uint256 lastModifiedBlock,
             bytes memory metadata,
             bytes memory shipmentBuyer,
-            bytes memory shipmentReporter
+            bytes memory shipmentReporter,
+            bytes memory shipmentArbiter
         )
     {
         Order storage order = orders[orderId];
@@ -331,6 +332,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         metadata = order.metadata;
         shipmentBuyer = order.shipmentBuyer;
         shipmentReporter = order.shipmentReporter;
+        shipmentArbiter = order.shipmentArbiter;
     }
 
     function getSeller() public view returns (address) {
