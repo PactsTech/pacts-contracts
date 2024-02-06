@@ -94,7 +94,8 @@ describe('OrderProcessorErc20', () => {
         orderLastModifiedBlock,
         orderMetadata,
         orderShipmentBuyer,
-        orderShipmentReporter
+        orderShipmentReporter,
+        orderShipmentArbiter
       ] = await processor.read.getOrder([id]);
       expect(orderSequence).to.eq(1n, 'Sequence should be 1');
       expect(orderState).to.eq(0, 'State should be 0');
@@ -106,6 +107,7 @@ describe('OrderProcessorErc20', () => {
       expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
       expect(orderShipmentBuyer).to.eq('0x', 'Shipment Buyer should be 0x');
       expect(orderShipmentReporter).to.eq('0x', 'Shipment Reporter should be 0x');
+      expect(orderShipmentArbiter).to.eq('0x', 'Shipment Arbiter should be 0x');
     });
 
     it('Should allow you to ship an order', async () => {
@@ -137,7 +139,8 @@ describe('OrderProcessorErc20', () => {
         orderLastModifiedBlock,
         orderMetadata,
         orderShipmentBuyer,
-        orderShipmentReporter
+        orderShipmentReporter,
+        orderShipmentArbiter
       ] = await processor.read.getOrder([id]);
       expect(orderSequence).to.eq(1n, 'Sequence should be 1');
       expect(orderState).to.eq(1, 'State should be 1');
@@ -149,6 +152,7 @@ describe('OrderProcessorErc20', () => {
       expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
       expect(orderShipmentBuyer).to.eq(shipmentHex, 'Shipment Buyer should be 0x68656c6c6f20776f726c6421');
       expect(orderShipmentReporter).to.eq(shipmentHex, 'Shipment Reporter should be 0x68656c6c6f20776f726c6421');
+      expect(orderShipmentArbiter).to.eq(shipmentHex, 'Shipment Arbiter should be 0x68656c6c6f20776f726c6421');
     });
   });
 });
