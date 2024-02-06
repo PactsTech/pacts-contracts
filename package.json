@@ -1,11 +1,12 @@
 {
   "name": "@pactstech/contracts",
   "version": "0.1.0",
-  "description": "This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.",
+  "description": "Solidity contracts for pacts",
   "type": "module",
   "main": "index.js",
   "files": [
-    "/artifacts/contracts/*.json"
+    "/contracts/**/*.sol",
+    "/artifacts/**/*"
   ],
   "scripts": {
     "prepublish": "npm run compile",
