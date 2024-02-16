@@ -74,7 +74,7 @@ describe('OrderProcessorErc20', () => {
     it('Should allow you to create an order', async () => {
       const price = 10000000;
       const shipping = 1000000;
-      const { publicClient, token, processor, buyer } = await loadFixture(deployOrderProcessorFixture);
+      const { publicClient, token, processor, reporter, arbiter, buyer } = await loadFixture(deployOrderProcessorFixture);
       const buyerToken = await hre.viem.getContractAt('TestToken', token.address, { walletClient: buyer });
       const approval = await buyerToken.write.approve([processor.address, price + shipping]);
       await publicClient.waitForTransactionReceipt({ hash: approval });
@@ -82,13 +82,27 @@ describe('OrderProcessorErc20', () => {
       const buyerProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
         walletClient: buyer
       });
-      const submit = await buyerProcessor.write.submit([id, buyerPublicKey, price, shipping, '0x01']);
+      const reporterAddress = reporter.account.address;
+      const arbiterAddress = arbiter.account.address;
+      const submit = await buyerProcessor.write.submit([
+        id,
+        buyerPublicKey,
+        reporterAddress,
+        arbiterAddress,
+        price,
+        shipping,
+        '0x01'
+      ]);
       await publicClient.waitForTransactionReceipt({ hash: submit });
       const [
         orderSequence,
         orderState,
         orderBuyer,
         orderBuyerPublicKey,
+        orderReporter,
+        orderReporterPublicKey,
+        orderArbiter,
+        orderArbiterPublicKey,
         orderPrice,
         orderShipping,
         orderLastModifiedBlock,
@@ -101,6 +115,10 @@ describe('OrderProcessorErc20', () => {
       expect(orderState).to.eq(0, 'State should be 0');
       expect(orderBuyer.toLowerCase()).to.eq(buyer.account.address.toLowerCase(), 'Buyer should be set');
       expect(orderBuyerPublicKey).to.eq(buyerPublicKey, 'Buyer Public Key should be set');
+      expect(orderReporter.toLowerCase()).to.eq(reporter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderReporterPublicKey).to.eq(buyerPublicKey, 'Reporter Public Key should be set');
+      expect(orderArbiter.toLowerCase()).to.eq(arbiter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderArbiterPublicKey).to.eq(buyerPublicKey, 'Arbiter Public Key should be set');
       expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
       expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
       expect(orderLastModifiedBlock).to.eq(4n, 'Last modified block should be 4');
@@ -113,7 +131,9 @@ describe('OrderProcessorErc20', () => {
     it('Should allow you to ship an order', async () => {
       const price = 10000000;
       const shipping = 1000000;
-      const { publicClient, token, processor, buyer, seller } = await loadFixture(deployOrderProcessorFixture);
+      const { publicClient, token, processor, reporter, arbiter, buyer, seller } = await loadFixture(
+        deployOrderProcessorFixture
+      );
       const buyerToken = await hre.viem.getContractAt('TestToken', token.address, { walletClient: buyer });
       const approval = await buyerToken.write.approve([processor.address, price + shipping]);
       await publicClient.waitForTransactionReceipt({ hash: approval });
@@ -121,7 +141,17 @@ describe('OrderProcessorErc20', () => {
       const buyerProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
         walletClient: buyer
       });
-      const submit = await buyerProcessor.write.submit([id, buyerPublicKey, price, shipping, '0x01']);
+      const reporterAddress = reporter.account.address;
+      const arbiterAddress = arbiter.account.address;
+      const submit = await buyerProcessor.write.submit([
+        id,
+        buyerPublicKey,
+        reporterAddress,
+        arbiterAddress,
+        price,
+        shipping,
+        '0x01'
+      ]);
       await publicClient.waitForTransactionReceipt({ hash: submit });
       const sellerProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
         walletClient: seller
@@ -134,6 +164,10 @@ describe('OrderProcessorErc20', () => {
         orderState,
         orderBuyer,
         orderBuyerPublicKey,
+        orderReporter,
+        orderReporterPublicKey,
+        orderArbiter,
+        orderArbiterPublicKey,
         orderPrice,
         orderShipping,
         orderLastModifiedBlock,
@@ -146,6 +180,10 @@ describe('OrderProcessorErc20', () => {
       expect(orderState).to.eq(1, 'State should be 1');
       expect(orderBuyer.toLowerCase()).to.eq(buyer.account.address.toLowerCase(), 'Buyer should be set');
       expect(orderBuyerPublicKey).to.eq(buyerPublicKey, 'Buyer Public Key should be set');
+      expect(orderReporter.toLowerCase()).to.eq(reporter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderReporterPublicKey).to.eq(buyerPublicKey, 'Reporter Public Key should be set');
+      expect(orderArbiter.toLowerCase()).to.eq(arbiter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderArbiterPublicKey).to.eq(buyerPublicKey, 'Arbiter Public Key should be set');
       expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
       expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
       expect(orderLastModifiedBlock).to.eq(5n, 'Last modified block should be 4');

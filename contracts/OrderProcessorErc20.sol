@@ -21,6 +21,10 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         State state;
         address buyer;
         bytes32 buyerPublicKey;
+        address reporter;
+        bytes32 reporterPublicKey;
+        address arbiter;
+        bytes32 arbiterPublicKey;
         uint256 price;
         uint256 shipping;
         uint256 lastModifiedBlock;
@@ -114,11 +118,9 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address token_
     ) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(REPORTER_ROLE, reporter);
-        _grantRole(ARBITER_ROLE, arbiter);
+        updateReporter(reporter, reporterPublicKey_);
+        updateArbiter(arbiter, arbiterPublicKey_);
         storeName = storeName_;
-        reporterPublicKey = reporterPublicKey_;
-        arbiterPublicKey = arbiterPublicKey_;
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
@@ -128,27 +130,36 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     function submit(
         string memory orderId,
         bytes32 buyerPublicKey,
+        address reporter,
+        address arbiter,
         uint256 price,
         uint256 shipping,
         bytes memory metadata
     ) external {
+        address currentReporter = getReporter();
+        require(reporter == currentReporter, "Reporter is not current");
+        address currentArbiter = getArbiter();
+        require(arbiter == currentArbiter, "Arbiter is not current");
         Order storage order = orders[orderId];
         require(order.sequence == 0, "Order already exists");
         orders[orderId].sequence = sequence++;
         orders[orderId].state = State.Submitted;
         orders[orderId].buyer = msg.sender;
         orders[orderId].buyerPublicKey = buyerPublicKey;
+        orders[orderId].reporter = reporter;
+        orders[orderId].reporterPublicKey = reporterPublicKey;
+        orders[orderId].arbiter = arbiter;
+        orders[orderId].arbiterPublicKey = arbiterPublicKey;
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[msg.sender] = price + shipping;
         orders[orderId].metadata = metadata;
         address seller = getSeller();
-        address reporter = getReporter();
         emit Submitted(
             seller,
             msg.sender,
-            reporter,
+            currentReporter,
             orderId,
             storeName,
             price,
@@ -186,36 +197,36 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         );
     }
 
-    function deliver(string memory orderId) external onlyRole(REPORTER_ROLE) {
+    function deliver(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
+        require(order.reporter == msg.sender);
         orders[orderId].state = State.Delivered;
         orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
-        address reporter = getReporter();
         emit Delivered(
             seller,
             order.buyer,
-            reporter,
+            order.reporter,
             orderId,
             order.shipmentBuyer,
             order.shipmentReporter
         );
     }
 
-    function fail(string memory orderId) external onlyRole(REPORTER_ROLE) {
+    function fail(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Shipped, "Order in incorrect state");
+        require(order.reporter == msg.sender);
         orders[orderId].state = State.Failed;
         orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
-        address reporter = getReporter();
         emit Failed(
             seller,
             order.buyer,
-            reporter,
+            order.reporter,
             orderId,
             order.shipmentBuyer,
             order.shipmentReporter
@@ -243,8 +254,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         orders[orderId].state = State.Disputed;
         orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
-        address arbiter = getArbiter();
-        emit Disputed(seller, order.buyer, arbiter, orderId);
+        emit Disputed(seller, order.buyer, order.arbiter, orderId);
     }
 
     function resolve(
@@ -255,14 +265,31 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Disputed, "Order in incorrect state");
-        address arbiter = getArbiter();
-        require(arbiter == msg.sender, "Only a arbiter can resolve");
+        require(order.arbiter == msg.sender, "Only a arbiter can resolve");
         address seller = getSeller();
         orders[orderId].state = State.Resolved;
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[seller] = sellerDeposit;
         orders[orderId].deposits[order.buyer] = buyerDeposit;
-        emit Resolved(seller, order.buyer, arbiter, orderId);
+        emit Resolved(seller, order.buyer, order.arbiter, orderId);
+    }
+
+    function updateReporter(
+        address reporter,
+        bytes32 reporterPublicKey_
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeAllRoleMembers(REPORTER_ROLE);
+        _grantRole(REPORTER_ROLE, reporter);
+        reporterPublicKey = reporterPublicKey_;
+    }
+
+    function updateArbiter(
+        address arbiter,
+        bytes32 arbiterPublicKey_
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeAllRoleMembers(ARBITER_ROLE);
+        _grantRole(ARBITER_ROLE, arbiter);
+        arbiterPublicKey = arbiterPublicKey_;
     }
 
     function withdrawalAllowed(
@@ -311,6 +338,10 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             uint8 state,
             address buyer,
             bytes32 buyerPublicKey,
+            address reporter,
+            bytes32 reporterPublicKey_,
+            address arbiter,
+            bytes32 arbiterPublicKey_,
             uint256 price,
             uint256 shipping,
             uint256 lastModifiedBlock,
@@ -326,6 +357,10 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         state = uint8(order.state);
         buyer = order.buyer;
         buyerPublicKey = order.buyerPublicKey;
+        reporter = order.reporter;
+        reporterPublicKey_ = order.reporterPublicKey;
+        arbiter = order.arbiter;
+        arbiterPublicKey_ = order.arbiterPublicKey;
         price = order.price;
         shipping = order.shipping;
         lastModifiedBlock = order.lastModifiedBlock;
@@ -345,5 +380,15 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
 
     function getArbiter() public view returns (address) {
         return getRoleMember(ARBITER_ROLE, 0);
+    }
+
+    // TODO possibly override grantRole/revokeRole to ensure not multiple reporters,arbiters
+
+    function _revokeAllRoleMembers(bytes32 role) internal {
+        uint256 count = getRoleMemberCount(role);
+        for (uint256 i = 0; i < count; i++) {
+            address member = getRoleMember(role, i);
+            _revokeRole(role, member);
+        }
     }
 }
