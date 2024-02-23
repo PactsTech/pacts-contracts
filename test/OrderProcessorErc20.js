@@ -84,6 +84,8 @@ describe('OrderProcessorErc20', () => {
       });
       const reporterAddress = reporter.account.address;
       const arbiterAddress = arbiter.account.address;
+      const metadataJson = JSON.stringify([{ name: 'Random Item' }]);
+      const metadata = `0x${Buffer.from(metadataJson, 'utf8').toString('hex')}`;
       const submit = await buyerProcessor.write.submit([
         id,
         buyerPublicKey,
@@ -91,7 +93,7 @@ describe('OrderProcessorErc20', () => {
         arbiterAddress,
         price,
         shipping,
-        '0x01'
+        metadata
       ]);
       await publicClient.waitForTransactionReceipt({ hash: submit });
       const [
@@ -122,7 +124,7 @@ describe('OrderProcessorErc20', () => {
       expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
       expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
       expect(orderLastModifiedBlock).to.eq(4n, 'Last modified block should be 4');
-      expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
+      expect(orderMetadata).to.eq(metadata, 'Metadata should be 0x01');
       expect(orderShipmentBuyer).to.eq('0x', 'Shipment Buyer should be 0x');
       expect(orderShipmentReporter).to.eq('0x', 'Shipment Reporter should be 0x');
       expect(orderShipmentArbiter).to.eq('0x', 'Shipment Arbiter should be 0x');
