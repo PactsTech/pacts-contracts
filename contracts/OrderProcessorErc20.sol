@@ -149,6 +149,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(arbiter == currentArbiter, "Arbiter is not current");
         Order storage order = orders[orderId];
         require(order.sequence == 0, "Order already exists");
+        address seller = getSeller();
         orders[orderId].sequence = sequence++;
         orders[orderId].state = State.Submitted;
         orders[orderId].buyer = msg.sender;
@@ -160,9 +161,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         orders[orderId].price = price;
         orders[orderId].shipping = shipping;
         orders[orderId].lastModifiedBlock = block.number;
-        orders[orderId].deposits[msg.sender] = price + shipping;
+        orders[orderId].deposits[seller] = price + shipping;
         orders[orderId].metadata = metadata;
-        address seller = getSeller();
         emit Submitted(
             seller,
             msg.sender,
@@ -250,12 +250,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             block.number >= order.lastModifiedBlock + WAIT_BLOCKS,
             "Not enought blocks have passed"
         );
-        uint256 payment = order.deposits[msg.sender];
+        uint256 amount = order.deposits[msg.sender];
         orders[orderId].state = State.Completed;
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[msg.sender] = 0;
         emit Completed(msg.sender, order.buyer, order.reporter, orderId);
-        require(erc20.transfer(msg.sender, payment), "Token transfer failed");
+        require(erc20.transfer(msg.sender, amount), "Token transfer failed");
     }
 
     function cancel(
@@ -291,6 +291,10 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.state == State.Disputed, "Order in incorrect state");
         require(order.arbiter == msg.sender, "Only a arbiter can resolve");
         address seller = getSeller();
+        require(
+            orders[orderId].deposits[seller] == (sellerDeposit + buyerDeposit),
+            "Invalid deposit amounts"
+        );
         orders[orderId].state = State.Resolved;
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[seller] = sellerDeposit;
