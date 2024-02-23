@@ -9,6 +9,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Submitted,
         Shipped,
         Delivered,
+        Completed,
         Failed,
         Aborted,
         Canceled,
@@ -81,6 +82,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
+    event Completed(
+        address indexed seller,
+        address indexed buyer,
+        address indexed reporter,
+        string orderId
+    );
     event Failed(
         address indexed seller,
         address indexed buyer,
@@ -89,7 +96,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         bytes shipmentBuyer,
         bytes shipmentReporter
     );
-    event Aborted(
+    event Canceled(
         address indexed seller,
         address indexed buyer,
         address indexed reporter,
@@ -233,17 +240,34 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         );
     }
 
-    function abort(
+    function complete(
+        string memory orderId
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        Order storage order = orders[orderId];
+        require(order.sequence > 0, "Order does not exist");
+        require(order.state == State.Delivered, "Order in incorrect state");
+        require(
+            block.number >= order.lastModifiedBlock + WAIT_BLOCKS,
+            "Not enought blocks have passed"
+        );
+        uint256 payment = order.deposits[msg.sender];
+        orders[orderId].state = State.Completed;
+        orders[orderId].lastModifiedBlock = block.number;
+        orders[orderId].deposits[msg.sender] = 0;
+        emit Completed(msg.sender, order.buyer, order.reporter, orderId);
+        require(erc20.transfer(msg.sender, payment), "Token transfer failed");
+    }
+
+    function cancel(
         string memory orderId
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        orders[orderId].state = State.Aborted;
+        orders[orderId].state = State.Canceled;
         orders[orderId].lastModifiedBlock = block.number;
-        address seller = getSeller();
         address reporter = getReporter();
-        emit Aborted(seller, order.buyer, reporter, orderId);
+        emit Canceled(msg.sender, order.buyer, reporter, orderId);
     }
 
     function dispute(string memory orderId) external {
@@ -274,6 +298,26 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         emit Resolved(seller, order.buyer, order.arbiter, orderId);
     }
 
+    function withdraw(string memory orderId) external {
+        Order storage order = orders[orderId];
+        require(order.sequence > 0, "Order does not exist");
+        address seller = getSeller();
+        bool sellerCanWithdraw = msg.sender == seller &&
+            order.state == State.Resolved;
+        bool buyerCanWithdraw = msg.sender == order.buyer &&
+            (order.state == State.Canceled || order.state == State.Resolved);
+        require(
+            (sellerCanWithdraw || buyerCanWithdraw) &&
+                orders[orderId].deposits[msg.sender] > 0,
+            "payee can't withdraw"
+        );
+        uint256 amount = order.deposits[msg.sender];
+        orders[orderId].lastModifiedBlock = block.number;
+        orders[orderId].deposits[msg.sender] = 0;
+        emit Withdrawn(msg.sender, amount);
+        require(erc20.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
     function updateReporter(
         address reporter,
         bytes32 reporterPublicKey_
@@ -290,42 +334,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         _revokeAllRoleMembers(ARBITER_ROLE);
         _grantRole(ARBITER_ROLE, arbiter);
         arbiterPublicKey = arbiterPublicKey_;
-    }
-
-    function withdrawalAllowed(
-        string memory orderId,
-        address payee
-    ) public view returns (bool) {
-        Order storage order = orders[orderId];
-        address seller = getSeller();
-        if (payee == seller) {
-            return
-                (order.state == State.Delivered ||
-                    order.state == State.Resolved) &&
-                block.number >= (order.lastModifiedBlock + WAIT_BLOCKS);
-        } else if (payee == order.buyer) {
-            return
-                order.state == State.Canceled ||
-                order.state == State.Aborted ||
-                order.state == State.Resolved;
-        }
-        return false;
-    }
-
-    function withdraw(string memory orderId, address payee) external {
-        Order storage order = orders[orderId];
-        require(order.sequence > 0, "Order does not exist");
-        require(
-            withdrawalAllowed(orderId, payee),
-            "payee is not allowed to withdraw"
-        );
-        uint256 payment = order.deposits[payee];
-        orders[orderId].lastModifiedBlock = block.number;
-        orders[orderId].deposits[payee] = 0;
-        require(
-            erc20.transfer(address(payee), payment),
-            "Token transfer failed"
-        );
     }
 
     function getOrder(
