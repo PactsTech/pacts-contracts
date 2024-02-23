@@ -11,7 +11,6 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Delivered,
         Completed,
         Failed,
-        Aborted,
         Canceled,
         Disputed,
         Resolved
