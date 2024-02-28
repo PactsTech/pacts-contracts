@@ -3,6 +3,7 @@ import { loadFixture, mine } from '@nomicfoundation/hardhat-toolbox-viem/network
 import { expect } from 'chai';
 
 const storeName = `Bob's Widgets`;
+const waitBlocks = 500n;
 const buyerPublicKey = '0x557c9f3fcc1296ed254d7fb2e9f086fb1fa3f90fd1e0f305d213f8a27d22e50e';
 
 describe('OrderProcessorErc20', () => {
@@ -12,6 +13,7 @@ describe('OrderProcessorErc20', () => {
     const token = await hre.viem.deployContract('TestToken', [1000000000, buyer.account.address]);
     const processor = await hre.viem.deployContract('OrderProcessorErc20', [
       storeName,
+      waitBlocks,
       reporter.account.address,
       buyerPublicKey,
       arbiter.account.address,
@@ -340,7 +342,7 @@ describe('OrderProcessorErc20', () => {
       if (deliverReceipt.status !== 'success') {
         expect.fail('deliver transaction failed');
       }
-      await mine(21_300);
+      await mine(500);
       const complete = await sellerProcessor.write.complete([id]);
       const completeReceipt = await publicClient.waitForTransactionReceipt({ hash: complete });
       if (completeReceipt.status !== 'success') {
@@ -374,7 +376,7 @@ describe('OrderProcessorErc20', () => {
       expect(orderArbiterPublicKey).to.eq(buyerPublicKey, 'Arbiter Public Key should be set');
       expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
       expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
-      expect(orderLastModifiedBlock).to.eq(21_307n, 'Last modified block should be 21_307');
+      expect(orderLastModifiedBlock).to.eq(507n, 'Last modified block should be 507');
       expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
       expect(orderShipmentBuyer).to.eq(shipmentHex, 'Shipment Buyer should be 0x68656c6c6f20776f726c6421');
       expect(orderShipmentReporter).to.eq(shipmentHex, 'Shipment Reporter should be 0x68656c6c6f20776f726c6421');

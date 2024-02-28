@@ -39,9 +39,9 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     bytes32 public constant ARBITER_ROLE = keccak256("ARBITER_ROLE");
 
     uint8 public constant VERSION = 1;
-    uint256 public constant WAIT_BLOCKS = 21300;
 
     string public storeName;
+    uint256 public immutable waitBlocks;
     bytes32 public reporterPublicKey;
     bytes32 public arbiterPublicKey;
     address public immutable token;
@@ -117,6 +117,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
 
     constructor(
         string memory storeName_,
+        uint256 waitBlocks_,
         address reporter,
         bytes32 reporterPublicKey_,
         address arbiter,
@@ -127,6 +128,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         updateReporter(reporter, reporterPublicKey_);
         updateArbiter(arbiter, arbiterPublicKey_);
         storeName = storeName_;
+        waitBlocks = waitBlocks_;
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
@@ -246,7 +248,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Delivered, "Order in incorrect state");
         require(
-            block.number >= order.lastModifiedBlock + WAIT_BLOCKS,
+            block.number >= order.lastModifiedBlock + waitBlocks,
             "Not enought blocks have passed"
         );
         uint256 amount = order.deposits[msg.sender];
