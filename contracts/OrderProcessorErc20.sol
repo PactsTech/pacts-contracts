@@ -274,7 +274,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     function dispute(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
-        require(order.state == State.Submitted, "Order in incorrect state");
+        require(order.state == State.Delivered, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only a buyer can dispute");
         orders[orderId].state = State.Disputed;
         orders[orderId].lastModifiedBlock = block.number;
