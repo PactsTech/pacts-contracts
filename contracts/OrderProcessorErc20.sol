@@ -12,6 +12,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         Completed,
         Failed,
         Canceled,
+        Aborted,
         Disputed,
         Resolved
     }
@@ -96,6 +97,12 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         bytes shipmentReporter
     );
     event Canceled(
+        address indexed seller,
+        address indexed buyer,
+        address indexed reporter,
+        string orderId
+    );
+    event Aborted(
         address indexed seller,
         address indexed buyer,
         address indexed reporter,
@@ -259,23 +266,43 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(erc20.transfer(msg.sender, amount), "Token transfer failed");
     }
 
-    function cancel(
+    function cancel(string memory orderId) external {
+        Order storage order = orders[orderId];
+        require(order.sequence > 0, "Order does not exist");
+        require(order.state == State.Submitted, "Order in incorrect state");
+        require(order.buyer == msg.sender, "Only the buyer can cancel");
+        require(
+            block.number >= order.lastModifiedBlock + waitBlocks,
+            "Not enought blocks have passed"
+        );
+        address seller = getSeller();
+        uint256 amount = order.deposits[seller];
+        orders[orderId].state = State.Canceled;
+        orders[orderId].lastModifiedBlock = block.number;
+        orders[orderId].deposits[seller] = 0;
+        address reporter = getReporter();
+        emit Canceled(seller, msg.sender, reporter, orderId);
+        require(erc20.transfer(msg.sender, amount), "Token transfer failed");
+    }
+
+    function abort(
         string memory orderId
     ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Submitted, "Order in incorrect state");
-        orders[orderId].state = State.Canceled;
+        address seller = getSeller();
+        orders[orderId].state = State.Aborted;
         orders[orderId].lastModifiedBlock = block.number;
         address reporter = getReporter();
-        emit Canceled(msg.sender, order.buyer, reporter, orderId);
+        emit Aborted(seller, msg.sender, reporter, orderId);
     }
 
     function dispute(string memory orderId) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Delivered, "Order in incorrect state");
-        require(order.buyer == msg.sender, "Only a buyer can dispute");
+        require(order.buyer == msg.sender, "Only the buyer can dispute");
         orders[orderId].state = State.Disputed;
         orders[orderId].lastModifiedBlock = block.number;
         address seller = getSeller();
@@ -310,7 +337,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         bool sellerCanWithdraw = msg.sender == seller &&
             order.state == State.Resolved;
         bool buyerCanWithdraw = msg.sender == order.buyer &&
-            (order.state == State.Canceled || order.state == State.Resolved);
+            (order.state == State.Aborted || order.state == State.Resolved);
         require(
             (sellerCanWithdraw || buyerCanWithdraw) &&
                 orders[orderId].deposits[msg.sender] > 0,
