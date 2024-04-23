@@ -3,7 +3,8 @@ import { loadFixture, mine } from '@nomicfoundation/hardhat-toolbox-viem/network
 import { expect } from 'chai';
 
 const storeName = `Bob's Widgets`;
-const waitBlocks = 500n;
+const cancelBlocks = 500n;
+const disputeBlocks = 500n;
 const buyerPublicKey = '0x557c9f3fcc1296ed254d7fb2e9f086fb1fa3f90fd1e0f305d213f8a27d22e50e';
 
 describe('OrderProcessorErc20', () => {
@@ -13,7 +14,8 @@ describe('OrderProcessorErc20', () => {
     const token = await hre.viem.deployContract('TestToken', [1000000000, buyer.account.address]);
     const processor = await hre.viem.deployContract('OrderProcessorErc20', [
       storeName,
-      waitBlocks,
+      cancelBlocks,
+      disputeBlocks,
       reporter.account.address,
       buyerPublicKey,
       arbiter.account.address,

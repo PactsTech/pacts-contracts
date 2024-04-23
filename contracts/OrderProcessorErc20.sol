@@ -42,7 +42,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
     uint8 public constant VERSION = 1;
 
     string public storeName;
-    uint256 public immutable waitBlocks;
+    uint256 public immutable cancelBlocks;
+    uint256 public immutable disputeBlocks;
     bytes32 public reporterPublicKey;
     bytes32 public arbiterPublicKey;
     address public immutable token;
@@ -55,7 +56,10 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed seller,
         address indexed reporter,
         address indexed arbiter,
-        string storeName_
+        string storeName_,
+        uint256 cancelBlocks_,
+        uint256 disputeBlocks_,
+        address token_
     );
     event Submitted(
         address indexed seller,
@@ -124,7 +128,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
 
     constructor(
         string memory storeName_,
-        uint256 waitBlocks_,
+        uint256 cancelBlocks_,
+        uint256 disputeBlocks_,
         address reporter,
         bytes32 reporterPublicKey_,
         address arbiter,
@@ -135,11 +140,20 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         updateReporter(reporter, reporterPublicKey_);
         updateArbiter(arbiter, arbiterPublicKey_);
         storeName = storeName_;
-        waitBlocks = waitBlocks_;
+        cancelBlocks = cancelBlocks_;
+        disputeBlocks = disputeBlocks_;
         token = token_;
         erc20 = IERC20(token_);
         sequence = 1;
-        emit Deployed(msg.sender, reporter, arbiter, storeName);
+        emit Deployed(
+            msg.sender,
+            reporter,
+            arbiter,
+            storeName,
+            cancelBlocks,
+            disputeBlocks,
+            token
+        );
     }
 
     function submit(
@@ -255,7 +269,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Delivered, "Order in incorrect state");
         require(
-            block.number >= order.lastModifiedBlock + waitBlocks,
+            block.number >= order.lastModifiedBlock + disputeBlocks,
             "Not enought blocks have passed"
         );
         uint256 amount = order.deposits[msg.sender];
@@ -272,7 +286,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         require(order.state == State.Submitted, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only the buyer can cancel");
         require(
-            block.number >= order.lastModifiedBlock + waitBlocks,
+            block.number >= order.lastModifiedBlock + cancelBlocks,
             "Not enought blocks have passed"
         );
         address seller = getSeller();
