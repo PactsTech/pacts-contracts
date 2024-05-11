@@ -385,5 +385,95 @@ describe('OrderProcessorErc20', () => {
       expect(orderShipmentArbiter).to.eq(shipmentHex, 'Shipment Arbiter should be 0x68656c6c6f20776f726c6421');
       expect(sellerBalance).to.eq(11_000_000n, 'Seller balance should be 11_000_000');
     });
+
+    it('Should allow you to dispute an order', async () => {
+      const price = 10000000;
+      const shipping = 1000000;
+      const { publicClient, token, processor, reporter, arbiter, buyer, seller } = await loadFixture(
+        deployOrderProcessorFixture
+      );
+      const buyerToken = await hre.viem.getContractAt('TestToken', token.address, { walletClient: buyer });
+      const approval = await buyerToken.write.approve([processor.address, price + shipping]);
+      const approvalReceipt = await publicClient.waitForTransactionReceipt({ hash: approval });
+      if (approvalReceipt.status !== 'success') {
+        expect.fail('approval transaction failed');
+      }
+      const id = 'testId';
+      const buyerProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        walletClient: buyer
+      });
+      const reporterAddress = reporter.account.address;
+      const arbiterAddress = arbiter.account.address;
+      const submit = await buyerProcessor.write.submit([
+        id,
+        buyerPublicKey,
+        reporterAddress,
+        arbiterAddress,
+        price,
+        shipping,
+        '0x01'
+      ]);
+      const submitReceipt = await publicClient.waitForTransactionReceipt({ hash: submit });
+      if (submitReceipt.status !== 'success') {
+        expect.fail('submit transaction failed');
+      }
+      const sellerProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        walletClient: seller
+      });
+      const shipmentHex = '0x68656c6c6f20776f726c6421';
+      const ship = await sellerProcessor.write.ship([id, shipmentHex, shipmentHex, shipmentHex]);
+      const shipReceipt = await publicClient.waitForTransactionReceipt({ hash: ship });
+      if (shipReceipt.status !== 'success') {
+        expect.fail('ship transaction failed');
+      }
+      const reporterProcessor = await hre.viem.getContractAt('OrderProcessorErc20', processor.address, {
+        walletClient: reporter
+      });
+      const deliver = await reporterProcessor.write.deliver([id]);
+      const deliverReceipt = await publicClient.waitForTransactionReceipt({ hash: deliver });
+      if (deliverReceipt.status !== 'success') {
+        expect.fail('deliver transaction failed');
+      }
+      const disputeUrl = 'https://example.com';
+      const dispute = await buyerProcessor.write.dispute([id, disputeUrl]);
+      const disputeReceipt = await publicClient.waitForTransactionReceipt({ hash: dispute });
+      if (disputeReceipt.status !== 'success') {
+        expect.fail('deliver transaction failed');
+      }
+      const [
+        orderSequence,
+        orderState,
+        orderBuyer,
+        orderBuyerPublicKey,
+        orderReporter,
+        orderReporterPublicKey,
+        orderArbiter,
+        orderArbiterPublicKey,
+        orderPrice,
+        orderShipping,
+        orderLastModifiedBlock,
+        orderMetadata,
+        orderShipmentBuyer,
+        orderShipmentReporter,
+        orderShipmentArbiter,
+        orderDisputeUrl
+      ] = await processor.read.getOrder([id]);
+      expect(orderSequence).to.eq(1n, 'Sequence should be 1');
+      expect(orderState).to.eq(7, 'State should be 7');
+      expect(orderBuyer.toLowerCase()).to.eq(buyer.account.address.toLowerCase(), 'Buyer should be set');
+      expect(orderBuyerPublicKey).to.eq(buyerPublicKey, 'Buyer Public Key should be set');
+      expect(orderReporter.toLowerCase()).to.eq(reporter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderReporterPublicKey).to.eq(buyerPublicKey, 'Reporter Public Key should be set');
+      expect(orderArbiter.toLowerCase()).to.eq(arbiter.account.address.toLowerCase(), 'Reporter should be set');
+      expect(orderArbiterPublicKey).to.eq(buyerPublicKey, 'Arbiter Public Key should be set');
+      expect(orderPrice).to.eq(10000000n, 'Price should be 10000000');
+      expect(orderShipping).to.eq(1000000n, 'Shipping should be 1000000');
+      expect(orderLastModifiedBlock).to.eq(7n, 'Last modified block should be 7');
+      expect(orderMetadata).to.eq('0x01', 'Metadata should be 0x01');
+      expect(orderShipmentBuyer).to.eq(shipmentHex, 'Shipment Buyer should be 0x68656c6c6f20776f726c6421');
+      expect(orderShipmentReporter).to.eq(shipmentHex, 'Shipment Reporter should be 0x68656c6c6f20776f726c6421');
+      expect(orderShipmentArbiter).to.eq(shipmentHex, 'Shipment Arbiter should be 0x68656c6c6f20776f726c6421');
+      expect(orderDisputeUrl).to.eq(disputeUrl, 'order dispute url should be set');
+    });
   });
 });

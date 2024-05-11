@@ -34,6 +34,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         bytes shipmentBuyer;
         bytes shipmentReporter;
         bytes shipmentArbiter;
+        string disputeUrl;
     }
 
     bytes32 public constant REPORTER_ROLE = keccak256("REPORTER_ROLE");
@@ -116,7 +117,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed seller,
         address indexed buyer,
         address indexed arbiter,
-        string orderId
+        string orderId,
+        string disputeUrl
     );
     event Resolved(
         address indexed seller,
@@ -312,15 +314,16 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         emit Aborted(seller, msg.sender, reporter, orderId);
     }
 
-    function dispute(string memory orderId) external {
+    function dispute(string memory orderId, string memory disputeUrl) external {
         Order storage order = orders[orderId];
         require(order.sequence > 0, "Order does not exist");
         require(order.state == State.Delivered, "Order in incorrect state");
         require(order.buyer == msg.sender, "Only the buyer can dispute");
         orders[orderId].state = State.Disputed;
         orders[orderId].lastModifiedBlock = block.number;
+        orders[orderId].disputeUrl = disputeUrl;
         address seller = getSeller();
-        emit Disputed(seller, order.buyer, order.arbiter, orderId);
+        emit Disputed(seller, order.buyer, order.arbiter, orderId, disputeUrl);
     }
 
     function resolve(
@@ -402,7 +405,8 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
             bytes memory metadata,
             bytes memory shipmentBuyer,
             bytes memory shipmentReporter,
-            bytes memory shipmentArbiter
+            bytes memory shipmentArbiter,
+            string memory disputeUrl
         )
     {
         Order storage order = orders[orderId];
@@ -422,6 +426,7 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         shipmentBuyer = order.shipmentBuyer;
         shipmentReporter = order.shipmentReporter;
         shipmentArbiter = order.shipmentArbiter;
+        disputeUrl = order.disputeUrl;
     }
 
     function getSeller() public view returns (address) {
