@@ -1,13 +1,29 @@
-# Sample Hardhat Project
+# Pacts Contracts
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+Contract repository for Pacts.
 
-Try running some of the following tasks:
+### Installation
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
+```sh
+npm i @pactstech/contracts
+```
+
+### Compiling
+
+```sh
+npm run compile
+```
+
+### Generating ABI JSON
+
+* requires `jq`
+
+```sh
+npm run abi
+```
+
+### Running Tests
+
+```sh
+npm run test
 ```
