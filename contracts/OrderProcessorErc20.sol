@@ -124,7 +124,9 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         address indexed seller,
         address indexed buyer,
         address indexed arbiter,
-        string orderId
+        string orderId,
+        uint256 sellerDeposit,
+        uint256 buyerDeposit
     );
     event Withdrawn(address indexed payee, uint256 amount);
 
@@ -344,7 +346,14 @@ contract OrderProcessorErc20 is AccessControlEnumerable {
         orders[orderId].lastModifiedBlock = block.number;
         orders[orderId].deposits[seller] = sellerDeposit;
         orders[orderId].deposits[order.buyer] = buyerDeposit;
-        emit Resolved(seller, order.buyer, order.arbiter, orderId);
+        emit Resolved(
+            seller,
+            order.buyer,
+            order.arbiter,
+            orderId,
+            sellerDeposit,
+            buyerDeposit
+        );
     }
 
     function withdraw(string memory orderId) external {
