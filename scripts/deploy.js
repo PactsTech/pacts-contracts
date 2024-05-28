@@ -6,15 +6,26 @@
 // global scope, and execute the script.
 import hre from 'hardhat';
 
-const token = process.env.USDC_PROXY_ADDRESS;
+const storeName = process.env.STORE_NAME;
+const cancelBlocks = BigInt(process.env.CANCEL_BLOCKS || '1000');
+const disputeBlocks = BigInt(process.env.DISPUTE_BLOCKS || '1000');
+const reporter = process.env.REPORTER;
+const reporterPublicKey = process.env.REPORTER_PUBLIC_KEY;
+const arbiter = process.env.ARBITER;
+const arbiterPublicKey = process.env.ARBITER_PUBLIC_KEY;
+const token = process.env.TOKEN;
 
 try {
-  const [seller, pacts] = await hre.ethers.getSigners();
-  console.log(`Deploying the contracts with account: ${seller.address}`);
-  console.log(`Using artbiter and reporter: ${pacts.address}`);
-  console.log(`Using erc20 token address: ${token}`);
-  const processor = await hre.ethers.deployContract('OrderProcessorErc20', [pacts.address, pacts.address, token]);
-  await processor.waitForDeployment();
+  const processor = await hre.viem.deployContract('OrderProcessorErc20', [
+    storeName,
+    cancelBlocks,
+    disputeBlocks,
+    reporter,
+    reporterPublicKey,
+    arbiter,
+    arbiterPublicKey,
+    token
+  ]);
   console.log(`Token address: ${await processor.getAddress()}`);
 } catch (error) {
   console.error(error);
